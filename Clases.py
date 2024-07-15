@@ -1,4 +1,2 @@
-print("hola como estas")
-print("jajajaja")
-print("holaaa")
-print("hello jajaja")
+## Comienzo del proyecto de Finanzas  
+print("Con esto comienza el proyecto")
