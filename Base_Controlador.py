@@ -1,45 +1,94 @@
 import sqlite3 as sql
+import Base_Creacion as bc
+import Base_Insercion as bi
+from urllib.request import pathname2url
+import os
 
-Base = sql.connect('base_principal.db')
-cursor = Base.cursor()
 
-#Plantillas
-insertFlujo = """INSERT INTO Flujo
-VALUES(?, ? ,?,  ?);"""
 
-insertTransacciones = """INSERT INTO Transacciones
-VALUES(?, ? ,?, ?);"""
+#---------------------------------------------------------------------
 
-insertRubro =  """INSERT INTO Rubro
-VALUES(?, ? );"""
+#Verificar si existe la base de datos
+    
+    #Si no existe la crea usando Base_Creacion en el día especificado
 
-insertInfo_transacciones = """INSERT INTO Info_transacciones
-VALUES(?, ?, ?, ?);"""
+    #Y sólo se ejecuta una vez
 
-insertSemanal = """INSERT INTO SEMANAL
-VALUES(?, ?, ?, ?, ?, ?, ?, ?);"""
+    #Devuelve verdadero si se creo correctamente
 
+#---------------------------------------------------------------------
 insertDiario = """INSERT INTO Diario
 VALUES(?, ?, ?, ?, ?, ?, ?);"""
 
-insertSemanal = """INSERT INTO Semanal 
-VALUES(?, ?, ?, ?, ?, ?, ?, ?);"""
+def verificar_base_de_datos(Nombre_Base):
+    if os.path.exists(Nombre_Base):
+        print("La base de datos existe.")
+        return True
+    else:
+        print("La base de datos no existe.")
+        return False
 
-insertMensual = """INSERT INTO Mensual 
-VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""
 
-insertAnual = """INSERT INTO ANUAL 
-VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+# ---------------------------------------------------------------------------------------------------------------
+# Necesitamos una función para comparar la fecha actual con la ingresada de modo que no se ponga una fecha futura.
+# Mejorar los comentarios.
+# ---------------------------------------------------------------------------------------------------------------
 
-#Ingreso de datos
-cursor.execute(insertDiario, (None, '2024-07-16',None,None,None,None,None))
-cursor.execute(insertDiario, (None, '2024-07-17',None,None,None,None,None))
+def Inicializar_Base(Nombre_ini, ruta_absoluta):
+    #Verificamos para evitar sobreescribir una base ya creada
+    Verificacion = verificar_base_de_datos(Nombre_ini)
+    
+    if Verificacion == False:
+        Nombre_Base =  input("Dame el nombre de la nueva base: ") #Hay que considerar excepciones
+        Nombre_Base += '.db'
+        Fecha = input("Dame la fecha inicial en formato YYYY-MM-DD: ")
+        with open(ruta_absoluta, 'a') as file:
+            Nombre = Nombre_Base + '\n'
+            file.write(Nombre)
+    
+        Base = sql.connect(Nombre_Base)
+        cursor = Base.cursor()
+        
+        # Llamamos a la funcion creacion por que la ruta no existe entonces se tiene que crear una nueva base con las tablas
 
-#Imprimir los datos
-cursor.execute("""select * from Diario""" )
-fetchedData = cursor.fetchall() #Recupera todos los registros de la consulta
-print(fetchedData)
+        bc.Creacion_Tablas(Fecha,Base,cursor)
 
+        cursor.execute(insertDiario, (None,Fecha,None,None,None,None,None))
+        Base.commit()
+        print("La base ha sido creada")
+    else:
+        print("Conectando a {}" .format(Nombre_ini))
+        
+        # Primera conexión a la base.    
+        Base = sql.connect(Nombre_ini)
+        cursor = Base.cursor()
+    return Base, cursor
+
+# --------------------------------------------------------------------- 
+# Fecha:'YYYY-MM-DD'
+# os.path.realpath se ejecuta para darnos las ruta completa de el nombre que esta en ella
+# ---------------------------------------------------------------------
+
+
+ruta_absoluta = os.path.realpath('Base_Nombres.txt')
+
+print("Ruta absoluta:{}".format(ruta_absoluta))
+
+with open(ruta_absoluta, 'r') as file:
+    Nombre_Base = file.readlines()[0]
+    
+    print(Nombre_Base)
+Base, cursor = Inicializar_Base(Nombre_Base,ruta_absoluta)
+
+
+
+# ---------------------------------------------------------------------
+
+# ---------------------------------------------------------------------
+
+
+
+#Cerrando la base y guardando cambios
 Base.commit()
 cursor.close()
 Base.close()
