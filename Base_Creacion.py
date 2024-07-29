@@ -1,6 +1,6 @@
 
 ## Comienzo del proyecto de Finanzas  
-def Creacion_Tablas(Fecha, Base, cursor):
+def Creacion_Tablas(Base, cursor):
 
     #Creación de Entidades de la BD
     cursor.execute("PRAGMA foreign_keys = ON;")
@@ -20,11 +20,13 @@ def Creacion_Tablas(Fecha, Base, cursor):
                    CREATE TABLE Diario(
                             DIA_ID      integer NOT NULL
                             ,FECHA      date    NOT NULL
-                            ,DIA_SALDO  numeric
-                            ,SALDO      numeric
-                            ,PROMEDIO   numeric
-                            ,MEDIANA    numeric
-                            ,MODA       numeric
+                            ,DIA_INGRESO    numeric
+                            ,DIA_EGRESO     numeric
+                            ,DIA_SALDO      numeric
+                            ,SALDO          numeric
+                            ,PROMEDIO       numeric
+                            ,MEDIANA        numeric
+                            ,MODA           numeric
                             ,CONSTRAINT D_ID_PK PRIMARY KEY (DIA_ID AUTOINCREMENT)
                         );
     """) 
@@ -33,6 +35,8 @@ def Creacion_Tablas(Fecha, Base, cursor):
                             SEMANA_ID       integer NOT NULL
                             ,SEMANA_INICIO  date    NOT NULL
                             ,SEMANA_FIN     date    NOT NULL
+                            ,SEMANA_INGRESO numeric NOT NULL
+                            ,SEMANA_EGRESO  numeric NOT NULL
                             ,SEMANA_SALDO   numeric NOT NULL
                             ,SALDO          numeric NOT NULL
                             ,PROMEDIO       numeric NOT NULL
@@ -49,6 +53,8 @@ def Creacion_Tablas(Fecha, Base, cursor):
                             MES_ID          integer NOT NULL
                             ,MES_INICIO     date    NOT NULL
                             ,MES_FIN        date    NOT NULL
+                            ,MES_INGRESO    numeric NOT NULL
+                            ,MES_EGRESO     numeric NOT NULL
                             ,MES_SALDO      numeric NOT NULL
                             ,SALDO          numeric NOT NULL
                             ,PROMEDIO       numeric NOT NULL 
@@ -65,6 +71,8 @@ def Creacion_Tablas(Fecha, Base, cursor):
                             ANIO_ID         integer NOT NULL
                             ,ANIO_INICIO    date    NOT NULL
                             ,ANIO_FIN       date    NOT NULL
+                            ,ANIO_INGRESO   numeric NOT NULL
+                            ,ANIO_EGRESO    numeric NOT NULL
                             ,ANIO_SALDO     numeric NOT NULL 
                             ,SALDO          numeric NOT NULL
                             ,PROMEDIO       numeric NOT NULL
@@ -87,7 +95,7 @@ def Creacion_Tablas(Fecha, Base, cursor):
     cursor.execute("""
                     CREATE TABLE Info_transacciones(
                             INFO_ID     integer  NOT NULL
-                            ,COCEPTO    date     NOT NULL
+                            ,CONCEPTO   text     NOT NULL
                             ,CANTIDAD   numeric  NOT NULL
                             ,RUBRO_ID   integer
                             ,CONSTRAINT I_ID_IT_PK PRIMARY KEY(INFO_ID AUTOINCREMENT)
@@ -104,7 +112,7 @@ def Creacion_Tablas(Fecha, Base, cursor):
                             ,CONSTRAINT TRANSAC_INFO_ID_FK FOREIGN KEY (INFO_ID)   REFERENCES Info_transacciones (INFO_ID)
                             ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)
                         );
-    """) 
+    """) #La fecha es para la hora y fecha de guardado.
     
     cursor.execute("""
                 CREATE TABLE Flujo(
@@ -112,6 +120,7 @@ def Creacion_Tablas(Fecha, Base, cursor):
                             ,TRANSACCION_ID integer NOT NULL
                             ,INTERVALO      numeric
                             ,INTERESES      numeric
+                            ,FECHA_FINAL    date
                             ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID,TRANSACCION_ID)
                             ,CONSTRAINT FLUJ_TRANS_ID_FK FOREIGN KEY (TRANSACCION_ID)   REFERENCES Transacciones (TRANSACCION_ID)  
                         );
