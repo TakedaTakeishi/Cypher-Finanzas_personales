@@ -1,8 +1,9 @@
 from pathlib import Path
 import Base_Controlador as ctr
 from os import path
-from datetime import datetime
+from datetime import datetime, timedelta
 import Base_interfaz as interfaz
+
 
 # ---------------------------------------------------------------------
 # def diferencia(str_fin, str_inicio,tipo):
@@ -249,7 +250,6 @@ def insertRubro(cursor, rubro):
     cursor.execute('''SELECT *
                     FROM Rubro
                     WHERE UPPER(TIPO) = "{}"'''.format(Tipo))
-    
     fetchedData = cursor.fetchall()[0][0]
     
     return fetchedData
@@ -317,7 +317,7 @@ def insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
     VALUES(?, ? ,?, ?, ?);'''
     cursor.execute(Transacciones, (None, Operacion_ID, Fecha_hora, Info_ID, Dia_ID))
     Base.commit()
-    """
+    '''
                     CREATE TABLE Transacciones(
                             TRANSACCION_ID      integer  NOT NULL
                             ,OPERACION_ID       integer  NOT NULL
@@ -329,45 +329,103 @@ def insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
                             ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)
                             ,CONSTRAINT TRANSAC_OPE_ID_FK  FOREIGN KEY (OPERACION_ID) REFERENCES Flujo (OPERACION_ID)
                         );
-    """
-
-def insertUno(Base, cursor, Dia_ID, Concepto, Cantidad, Rubro = None):
+    '''
+"""
+def insertOne(Base, cursor, Dia_ID, Concepto, Cantidad, Rubro = None):
     Operacion_ID = insertFlujo(Base, cursor)
     Info_ID = insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro)
     
     Fecha_hora = datetime.now()
     print(f"La fecha y hora actual es: {Fecha_hora}")
     insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
+"""
+
+def insertOperation(Base, cursor, Dia_ID, Concepto, Cantidad, Rubro = None, Intervalo = None, Fecha_final = None, Intereses = None):
+    Operacion_ID = insertFlujo(Base, cursor, Intervalo, Fecha_final, Intereses)
+    Info_ID = insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro)
+    
+    Fecha_hora = datetime.now()
+    print(f"La fecha y hora actual es: {Fecha_hora}")
+    insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
+
+#Impresiones
+def printDiario():
+    print("\n--------Imprimiendo Info Diario:")
+    cursor.execute('''SELECT *
+                        FROM Diario''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printRubro():
+    print("\n--------Imprimiendo los Rubros:")
+    cursor.execute('''SELECT *
+                    FROM Rubro''')
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        #print(i)
+        #print(f"{i[][].- i[]}")
+        print(f'\t{i[0]}.-{i[1]}')
+
+
+def printInfo_trasacciones():
+    print("\n--------Imprimiendo Info Transacciones:")
+    cursor.execute('''SELECT *
+                        FROM Info_transacciones''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printTransacciones():
+    print("\n--------Imprimiendo Transacciones:")
+    cursor.execute('''SELECT *
+                    FROM Transacciones''')
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+    
+def printFlujo():
+    print("\n--------Imprimiendo Flujos:")
+    cursor.execute('''SELECT *
+                    FROM Flujo''')
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+# Función para insertar fechas en la tabla
+def generarDias(cursor, fecha_inicio, num_dias):
+    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+    for _ in range(num_dias):
+        fecha_actual += timedelta(days=1)
+        cursor.execute('INSERT INTO Diario (FECHA) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
 
 
 
 Base, cursor, Usuario = interfaz.usuario_Iniciar()
+printDiario()
+ultimo_dia, Dia_ID = ctr.fecha_Ultima(cursor)
+print(f"El último día es: {ultimo_dia}")
+print(f"El Dia_ID es: {Dia_ID}")
+diferencia = ctr.diferencia(cursor, datetime.now(), ultimo_dia,'d')
+print(f'La diferencia es: {diferencia}')
+generarDias(cursor, ultimo_dia, diferencia)
+printDiario()
 
-cursor.execute("""SELECT MAX(DIA_ID) FROM Diario""")
+"""
+
+cursor.execute('''SELECT MAX(DIA_ID) FROM Diario''')
 Dia_ID = cursor.fetchall()[0][0]
 
-insertUno(Base, cursor, Dia_ID, 'Compra de Xbox', 7000)
+insertOne(Base, cursor, Dia_ID, 'Comida', 55, 'Alimentacion')
+"""
 
-cursor.execute('''SELECT *
-                    FROM Rubro''')
-fetchedData = cursor.fetchall()
-print(fetchedData)
+printRubro()
 
-cursor.execute('''SELECT *
-                    FROM Info_transacciones''')                 
-fetchedData = cursor.fetchall()
-print(fetchedData)
+printInfo_trasacciones()
 
-cursor.execute('''SELECT *
-                    FROM Transacciones''')
-fetchedData = cursor.fetchall()
-print(fetchedData)
+printTransacciones()
 
-cursor.execute('''SELECT *
-                    FROM Flujo''')
-fetchedData = cursor.fetchall()
-
-
-print(fetchedData)
+printFlujo()
 
 Base.commit()

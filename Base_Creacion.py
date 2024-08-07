@@ -88,8 +88,8 @@ def Creacion_Tablas(Base, cursor):
                 CREATE TABLE Flujo(
                             OPERACION_ID    integer NOT NULL
                             ,INTERVALO      numeric
-                            ,INTERESES      numeric
                             ,FECHA_FINAL    date
+                            ,INTERESES      numeric
                             ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID AUTOINCREMENT) 
                         );
     """)

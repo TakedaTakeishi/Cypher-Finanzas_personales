@@ -8,7 +8,7 @@ import string
 from pathlib import Path
 import pathlib
 from os import path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 
@@ -55,10 +55,12 @@ def insertDiario(Base, cursor, Fecha):
                     );
     '''
 
+
 def insertRubro(cursor, rubro):
+    
     Tipo = str.upper(rubro)
     Rubro =  '''INSERT INTO Rubro
-    VALUES(?, ?);'''
+    VALUES(?, ? );'''
     cursor.execute('''SELECT TIPO
                         FROM Rubro
                         WHERE UPPER(TIPO) = "{}"'''.format(Tipo))
@@ -70,6 +72,13 @@ def insertRubro(cursor, rubro):
         cursor.execute(Rubro, (None,Tipo))
     else:
         print("El rubro ya existe.")
+    
+    cursor.execute('''SELECT *
+                    FROM Rubro
+                    WHERE UPPER(TIPO) = "{}"'''.format(Tipo))
+    fetchedData = cursor.fetchall()[0][0]
+    
+    return fetchedData
         
     '''
                 CREATE TABLE Rubro(
@@ -78,6 +87,7 @@ def insertRubro(cursor, rubro):
                         ,CONSTRAINT RUBRO_ID_PK PRIMARY KEY (RUBRO_ID AUTOINCREMENT)
                         );
     '''
+
 
 
 def insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro = None):
@@ -89,6 +99,14 @@ def insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro = None):
         Rubro_id = None
     cursor.execute(Info_Transacciones, (None, Concepto, Cantidad, Rubro_id)) #Falta verificar el rubro_id de rubro
     Base.commit()
+
+    #Retornamos el ID
+    cursor.execute('''SELECT MAX(INFO_ID)
+                        FROM Info_Transacciones''')
+    fetchedData = cursor.fetchall()[0][0]
+    print(f"La última operación de Info_transacciones es: {fetchedData}")
+    return fetchedData
+
     '''
                 CREATE TABLE Info_transacciones(
                         INFO_ID     integer  NOT NULL
@@ -99,15 +117,13 @@ def insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro = None):
                         ,CONSTRAINT INFO_RUBRO_R_ID_FK FOREIGN KEY (RUBRO_ID) REFERENCES Rubro (RUBRO_ID)
     '''
 
-    
-def insertTransacciones(Base, cursor, Fecha_hora, Info_ID, Dia_ID):
+def insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID):
     Transacciones = '''INSERT INTO Transacciones
     VALUES(?, ? ,?, ?, ?);'''
-    cursor.execute(Transacciones, (Fecha_hora, Info_ID, Dia_ID))
+    cursor.execute(Transacciones, (None, Operacion_ID, Fecha_hora, Info_ID, Dia_ID))
     Base.commit()
-
-    '''
-    CREATE TABLE Transacciones(
+    """
+                    CREATE TABLE Transacciones(
                             TRANSACCION_ID      integer  NOT NULL
                             ,OPERACION_ID       integer  NOT NULL
                             ,FECHA              datetime NOT NULL
@@ -118,25 +134,107 @@ def insertTransacciones(Base, cursor, Fecha_hora, Info_ID, Dia_ID):
                             ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)
                             ,CONSTRAINT TRANSAC_OPE_ID_FK  FOREIGN KEY (OPERACION_ID) REFERENCES Flujo (OPERACION_ID)
                         );
-    '''
-                    
+    """
+         
     
 
-def insertFlujo(Base, cursor, Transaccion_ID, Intervalo = None, Intereses = None, Fecha_final = None):
+def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = None):
     Flujo = '''INSERT INTO Flujo
-    VALUES(?, ?, ?, ?, ?);'''
-    cursor.execute(Flujo, (None,Transaccion_ID, Intervalo, Intereses, Fecha_final))
+    VALUES(?, ?, ?, ?);'''
+    cursor.execute(Flujo, (None, Intervalo, Fecha_final, Intereses))
     Base.commit()
+
+    cursor.execute('''SELECT MAX(OPERACION_ID)
+                        FROM Flujo''')
+    fetchedData = cursor.fetchall()[0][0]
+    print(f"La última operación de Flujo es: {fetchedData}")
+    return fetchedData
+
     '''
             CREATE TABLE Flujo(
                         OPERACION_ID    integer NOT NULL
                         ,INTERVALO      numeric
-                        ,INTERESES      numeric
                         ,FECHA_FINAL    date
-                        ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID,TRANSACCION_ID) 
+                        ,INTERESES      numeric
+                        ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID,TRANSACCION_ID)
                     );
     '''
+#=============================================================================================================
+#                                          ===Insertar un Dato===
+#=============================================================================================================
+# Función para insertar fechas en la tabla
+def insertar_fechas(cursor, fecha_inicio, num_dias):
+    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+    for i in range(num_dias):
+        print(i)
+        fecha_actual += timedelta(days=1)
+        cursor.execute('INSERT INTO Diario (FECHA) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
 
+#ctr.insertOperation(Base, cursor, Dia_ID, concepto,cantidad,rubro,intervalo,fecha_final,intereses)
+
+def insertOperation(Base, cursor, Dia_ID, Concepto, Cantidad, Rubro = None, Intervalo = None, Fecha_final = None, Intereses = None):
+    Operacion_ID = insertFlujo(Base, cursor, Intervalo, Fecha_final, Intereses)
+    Info_ID = insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro)
+    
+    Fecha_hora = datetime.now()
+    print(f"La fecha y hora actual es: {Fecha_hora}")
+    insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
+
+def generarDias(Base, cursor, fecha_inicio, num_dias):
+    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+    for _ in range(num_dias):
+        fecha_actual += timedelta(days=1)
+        cursor.execute('INSERT INTO Diario (FECHA) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
+    Base.commit()    
+
+#=============================================================================================================
+#                                          === IMPRESIONES ===
+#=============================================================================================================
+def printDiario(cursor):
+    print("\n--------Imprimiendo Info Diario:")
+    cursor.execute('''SELECT *
+                        FROM Diario''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printRubro(cursor):
+    print("\n--------Imprimiendo los Rubros:")
+    cursor.execute('''SELECT *
+                    FROM Rubro''')
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(f'\t{i[0]}.-{i[1]}')
+
+
+def printInfo_trasacciones(cursor):
+    print("\n--------Imprimiendo Info Transacciones:")
+    cursor.execute('''SELECT *
+                        FROM Info_transacciones''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printTransacciones(cursor):
+    print("\n--------Imprimiendo Transacciones:")
+    cursor.execute('''SELECT *
+                    FROM Transacciones''')
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+    
+def printFlujo(cursor):
+    print("\n--------Imprimiendo Flujos:")
+    cursor.execute('''SELECT *
+                    FROM Flujo''')
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+
+
+#------------------------------------------------------------------------------------------------------------------------------------
 #--------------------------------------------CREACIÓN DE USUARIOS Y BASES------------------------------------------------------------
 def nombre_BD(Nombre):
     Nombre_Base = Nombre.strip() + ".bd"
@@ -151,30 +249,11 @@ def verificar_BD(Nombre):
         print("La base de datos no existe.")
         return False
 
-
-
-# def base_Fecha():
-    
-#     regular = False
-#     while(not regular):
-#         s = input("Dame la fecha inicial en formato YYYY-MM-DD: ") #DD-MM-YYYY
-#         #s = año + '-' + mes + '-' + dia
-#         regular = bool(re.match(r'^\d{4}-\d{2}-\d{2}$',s)) #Hacer un validador de días, meses y años para la interfaz: le toca a Salazar
-#         if(regular != True):
-#             print("Formato incorrecto, vuelve a intentarlo.")
-#         else:
-#             if validar_fecha(s)== False:
-                
-#     #print("Fecha inicial: " + s)
-#     return s
-
 def validar_fecha(fecha):#Te regresa verdadero si el string fecha es una fecha corrrecta y no esta en el futuro
     anio = int(fecha[:4])
     mes = int(fecha[5:7])
     dia = int(fecha[8:10])
     fecha_hora_actual = datetime.now()
-
-    
     if anio<=0:
         return False
     if mes<=0 or mes>12:
@@ -196,6 +275,34 @@ def validar_fecha(fecha):#Te regresa verdadero si el string fecha es una fecha c
         return True
     else:
         return False
+
+def base_Fecha():   
+    regular = False
+    s = ""
+    while(not regular):
+        s = input("Dame la fecha inicial en formato YYYY-MM-DD: ") #DD-MM-YYYY
+        #s = año + '-' + mes + '-' + dia
+        regular = bool(re.match(r'^\d{4}-\d{2}-\d{2}$',s)) #Hacer un validador de días, meses y años para la interfaz: le toca a Salazar
+        if(regular != True):
+            print("Formato incorrecto, vuelve a intentarlo.")
+        else:
+            if validar_fecha(s) == False:      
+                print("Fecha está en el futuro, vuelva a intentarlo.")
+                regular = False
+            else:
+                print(f"Fecha aceptada, la base inicia el: {s}")
+    return s
+'''
+
+'''
+def diferencia(cursor, str_fin, str_inicio, tipo):
+
+    query = f'''
+    SELECT (strftime('%{tipo}', '{str_fin}') - strftime('%{tipo}', '{str_inicio}'));
+    '''
+    cursor.execute(query)
+    fetchedData = cursor.fetchall()  
+    return fetchedData[0][0]
 
 def usuarios_Dir(Base_Nombre):
     current_directory = Path.cwd()
@@ -233,9 +340,16 @@ def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y
 #----------------------------CONSULTAS----------------------------
 def fecha_Ultima(cursor):
     cursor.execute("""SELECT MAX(FECHA) FROM Diario""")
-    fetchedData = cursor.fetchall()[0][0]
-    return fetchedData
+    Fecha = cursor.fetchall()[0][0]
+    cursor.execute("""SELECT MAX(DIA_ID) FROM Diario""")
+    Dia_ID = cursor.fetchall()[0][0]
+    return Fecha, Dia_ID
 
 def datos_Semana(cursor):
     pass
     cursor.execute()
+
+
+
+
+
