@@ -1,6 +1,8 @@
 import Base_Controlador as ctr
 from os import path
 from datetime import datetime
+import os
+
 
 #Que va a pedir y como
 
@@ -92,13 +94,12 @@ def usuario_Nuevo():
     usuario_Asigna(ruta, Nombre)
     Fecha = fecha_Inicial()
     Base, cursor = ctr.base_Inicializar(1, Nombre, Fecha)
-    return Base,cursor
+    return Base, cursor, Nombre
 
-
-def usuario_Lee(ruta, fila):
+def usuario_Nombre(ruta, fila):
     with open(ruta, 'r') as file:
         Nombre = file.readlines()[fila-1]
-    return Nombre
+    return Nombre.strip()
     
 def usuarios_Elegir(Usuarios_Max):
     ruta = path.realpath('Usuarios.txt')
@@ -106,9 +107,11 @@ def usuarios_Elegir(Usuarios_Max):
         print()
         opcion = int(input("Elije el número de usuario: "))
         if (opcion <= Usuarios_Max and opcion > 0):
-            Usuario = usuario_Lee(ruta, opcion)
+            Usuario = usuario_Nombre(ruta, opcion)
             return Usuario
         print("Valor inválido")
+
+
 
 def usuarios_menu():
     print("Elije usuario:")
@@ -119,24 +122,65 @@ def usuarios_menu():
     for string in file_object:
         i += 1
         print(f'{i}.{string}', end='')
-    Usuario = usuarios_Elegir(i)
-    return Usuario
+    #Enviamos i para saber el número máximo de usuarios.
+    return i
         
 
 def usuario_Iniciar():
     ruta = path.realpath('Usuarios.txt')
     with open(ruta,'r') as file: 
         if path.getsize(ruta) > 0:
+            #Para saber si tenemos más de un usuario comprobamos
             if (usuarios_Uno(ruta)):
                 Nombre = file.readlines()[0]                
             else:
-                Nombre = usuarios_menu()          
+                Nombre = usuarios_Elegir(usuarios_menu())          
             Base, cursor = ctr.base_Inicializar(2, Nombre)
-            
         else:
             print("No hay usuario creado, crea uno nuevo.")
-            Base, cursor = usuario_Nuevo()
-    return Base, cursor
+            Base, cursor, Nombre = usuario_Nuevo()
+    return Base, cursor, Nombre.strip()
+
+
+
+def delete_line(file_path, line_number):
+    # Leer todas las líneas del archivo
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+    
+    # Verificar que la línea a eliminar existe
+    if line_number < 1 or line_number > len(lines):
+        raise IndexError("El número de línea está fuera del rango.")
+    
+    # Eliminar la línea deseada (restar 1 porque las listas son 0-indexadas)
+    del lines[line_number - 1]
+
+    # Escribir las líneas restantes de nuevo al archivo
+    with open(file_path, 'w') as file:
+        file.writelines(lines)
+
+
+def usuarios_Borrar(Usuarios_Max, Base, cursor, Usuario):
+    ruta = path.realpath('Usuarios.txt')
+    borrado = False
+    while True:
+        print()
+        opcion = int(input("Elige el número de usuario a eliminar: "))
+        if (opcion <= Usuarios_Max and opcion > 0):
+            Nombre = usuario_Nombre(ruta, opcion) #Verificar si existe el usuario.
+            delete_line(ruta, opcion)
+            Base_nombre = Nombre + ".db"
+            Path = ctr.usuarios_Dir(Base_nombre)
+            # print(f"El usuario actual es: {Usuario}")
+            # print(f"El nombre elegido es: {Nombre}")
+            if (Nombre == Usuario):
+                base_Cerrar(Base, cursor)
+                borrado = True
+            os.remove(Path) #Verificar si existe la base.
+            print("Usuario borrado.")
+            return borrado
+        print("Valor inválido") #Tener una opción para cancelar la operación.
+
 
 
 
@@ -146,19 +190,19 @@ def datos_Ingresar(cursor, tipo ): #Cuando el tipo es 1 se regresa con intervalo
         while True:
             choice=int(input("1-Informacion del dia(con intervalo) \n2-Informacion del dia(sin intervalo)"))
             if choice ==1 :
-                concepto = input("Ingresa el concepto: ")
-                cantidad=float(input("Ingresa la cantidad: "))
-                rubro=input("Ingresa el rubro: ")
-                intereses=float(input("Ingresa los intereses: "))
-                intervalo=int(input("Ingresa el intervalo en dias: "))
-                fecha_final=0
+                concepto =  input("Ingresa el concepto: ")
+                cantidad=   float(input("Ingresa la cantidad: "))
+                rubro=      input("Ingresa el rubro: ")
+                intereses=  float(input("Ingresa los intereses: "))
+                intervalo=  int(input("Ingresa el intervalo en dias: "))
+                fecha_final=ctr.base_Fecha()
 
 
 def base_Cerrar(Base, cursor):
-    print("Cerrando la base...\n")
     Base.commit()
     cursor.close()
-    Base.close()   
+    Base.close()
+    print("Base cerrada...")   
     
 
       
@@ -171,7 +215,7 @@ def base_Cerrar(Base, cursor):
 # Quieres Crear otro usuario?
 
 def menu():
-    Base, cursor = usuario_Iniciar()
+    Base, cursor, Usuario = usuario_Iniciar()
     while True:
         print("----------MENU----------\n")
         print("1. Ingresar Dato")
@@ -179,14 +223,14 @@ def menu():
         print("3. Modificar Datos")
         print("4. Cambiar de usuario")
         print("5. Crear nuevo Usuario")
+        print("6. Borrar un usuario")
         print("0. Salir")
-        opcion = int(input("Elije que opcion quieres:\nR:"))
+        opcion = int(input("Elige que opcion quieres:\nR:"))
 
         match(opcion):
             case 0:
                 break
             case 1:
-
                 datos_Ingresar(cursor)
             # case 2:
             #     #datos_Mostrar(cursor)
@@ -195,10 +239,14 @@ def menu():
             #     datos_Modificar()
             case 4:
                 base_Cerrar(Base, cursor)
-                Nombre = usuarios_menu()          
-                Base, cursor = ctr.base_Inicializar(2, Nombre)
-            case 5:    
-                Base, cursor = usuario_Nuevo()
+                Usuario = usuarios_Elegir(usuarios_menu())         
+                Base, cursor = ctr.base_Inicializar(2, Usuario)
+            case 5:
+                base_Cerrar(Base, cursor)    
+                Base, cursor, Usuario = usuario_Nuevo() 
+            case 6:
+                if (usuarios_Borrar(usuarios_menu(), Base, cursor, Usuario)):
+                    Base, cursor, Usuario = usuario_Iniciar()
             case _:
                 print("No existe esa operacion")
     base_Cerrar(Base, cursor)
@@ -208,3 +256,4 @@ def menu():
 
 menu()
 
+# Probar el borrado, creación y cambio de usuarios.

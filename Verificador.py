@@ -2,13 +2,14 @@ from pathlib import Path
 import Base_Controlador as ctr
 from os import path
 from datetime import datetime
+import Base_interfaz as interfaz
 
 # ---------------------------------------------------------------------
 # def diferencia(str_fin, str_inicio,tipo):
 
-#     query = f"""
+#     query = f'''
 #     SELECT (strftime('%{tipo}', '{str_fin}') - strftime('%{tipo}', '{str_inicio}'));
-#     """
+#     '''
 #     cursor.execute(query)
 #     fetchedData = cursor.fetchall()  
 #     return fetchedData[0][0]
@@ -93,6 +94,7 @@ print(dia_actuald)
 print(año)
 '''
 
+"""
 def fecha_Inicial():
     anio=mes=dia=0
     fecha_hora_actual = datetime.now()
@@ -219,9 +221,153 @@ def usuario_Iniciar():
 base, cursor = usuario_Iniciar()
 
 def fecha_Ultima(cursor):
-    cursor.execute("""SELECT MAX(FECHA) FROM Diario""")
+    cursor.execute('''SELECT MAX(FECHA) FROM Diario''')
     fetchedData = cursor.fetchall()[0][0]
     return fetchedData
 
 
 print(fecha_Ultima(cursor))
+"""
+
+def insertRubro(cursor, rubro):
+    
+    Tipo = str.upper(rubro)
+    Rubro =  '''INSERT INTO Rubro
+    VALUES(?, ? );'''
+    cursor.execute('''SELECT TIPO
+                        FROM Rubro
+                        WHERE UPPER(TIPO) = "{}"'''.format(Tipo))
+    fetchedData = cursor.fetchall()
+    print(fetchedData)
+    #Veamos que no existe el rubro cuando está vacío
+    if(not bool(fetchedData)):
+        print("El rubro no existe, creando uno.")
+        cursor.execute(Rubro, (None,Tipo))
+    else:
+        print("El rubro ya existe.")
+    
+    cursor.execute('''SELECT *
+                    FROM Rubro
+                    WHERE UPPER(TIPO) = "{}"'''.format(Tipo))
+    
+    fetchedData = cursor.fetchall()[0][0]
+    
+    return fetchedData
+        
+    '''
+                CREATE TABLE Rubro(
+                        RUBRO_ID    integer NOT NULL
+                        ,TIPO       text    NOT NULL
+                        ,CONSTRAINT RUBRO_ID_PK PRIMARY KEY (RUBRO_ID AUTOINCREMENT)
+                        );
+    '''
+
+def insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro = None):
+    Info_Transacciones = '''INSERT INTO Info_transacciones
+    VALUES(?, ?, ?, ?);'''
+    if(Rubro):
+        Rubro_id = insertRubro(cursor, Rubro)
+    else:
+        Rubro_id = None
+    cursor.execute(Info_Transacciones, (None, Concepto, Cantidad, Rubro_id)) #Falta verificar el rubro_id de rubro
+    Base.commit()
+
+    #Retornamos el ID
+    cursor.execute('''SELECT MAX(INFO_ID)
+                        FROM Info_Transacciones''')
+    fetchedData = cursor.fetchall()[0][0]
+    print(f"La última operación de Info_transacciones es: {fetchedData}")
+    return fetchedData
+
+    '''
+                CREATE TABLE Info_transacciones(
+                        INFO_ID     integer  NOT NULL
+                        ,CONCEPTO   text     NOT NULL
+                        ,CANTIDAD   numeric  NOT NULL
+                        ,RUBRO_ID   integer
+                        ,CONSTRAINT I_ID_IT_PK PRIMARY KEY(INFO_ID AUTOINCREMENT)
+                        ,CONSTRAINT INFO_RUBRO_R_ID_FK FOREIGN KEY (RUBRO_ID) REFERENCES Rubro (RUBRO_ID)
+    '''
+
+#---------------
+def insertFlujo(Base, cursor, Intervalo = None, Intereses = None, Fecha_final = None):
+    Flujo = '''INSERT INTO Flujo
+    VALUES(?, ?, ?, ?);'''
+    cursor.execute(Flujo, (None, Intervalo, Intereses, Fecha_final))
+    Base.commit()
+
+    cursor.execute('''SELECT MAX(OPERACION_ID)
+                        FROM Flujo''')
+    fetchedData = cursor.fetchall()[0][0]
+    print(f"La última operación de Flujo es: {fetchedData}")
+    return fetchedData
+
+    '''
+            CREATE TABLE Flujo(
+                        OPERACION_ID    integer NOT NULL
+                        ,INTERVALO      numeric
+                        ,INTERESES      numeric
+                        ,FECHA_FINAL    date
+                        ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID,TRANSACCION_ID)
+                    );
+    '''
+
+def insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID):
+    Transacciones = '''INSERT INTO Transacciones
+    VALUES(?, ? ,?, ?, ?);'''
+    cursor.execute(Transacciones, (None, Operacion_ID, Fecha_hora, Info_ID, Dia_ID))
+    Base.commit()
+    """
+                    CREATE TABLE Transacciones(
+                            TRANSACCION_ID      integer  NOT NULL
+                            ,OPERACION_ID       integer  NOT NULL
+                            ,FECHA              datetime NOT NULL
+                            ,INFO_ID            integer  NOT NULL
+                            ,DIA_ID             integer  NOT NULL
+                            ,CONSTRAINT T_D_T_PK PRIMARY KEY(TRANSACCION_ID AUTOINCREMENT)
+                            ,CONSTRAINT TRANSAC_INFO_ID_FK FOREIGN KEY (INFO_ID)   REFERENCES Info_transacciones (INFO_ID)
+                            ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)
+                            ,CONSTRAINT TRANSAC_OPE_ID_FK  FOREIGN KEY (OPERACION_ID) REFERENCES Flujo (OPERACION_ID)
+                        );
+    """
+
+def insertUno(Base, cursor, Dia_ID, Concepto, Cantidad, Rubro = None):
+    Operacion_ID = insertFlujo(Base, cursor)
+    Info_ID = insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro)
+    
+    Fecha_hora = datetime.now()
+    print(f"La fecha y hora actual es: {Fecha_hora}")
+    insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
+
+
+
+Base, cursor, Usuario = interfaz.usuario_Iniciar()
+
+cursor.execute("""SELECT MAX(DIA_ID) FROM Diario""")
+Dia_ID = cursor.fetchall()[0][0]
+
+insertUno(Base, cursor, Dia_ID, 'Compra de Xbox', 7000)
+
+cursor.execute('''SELECT *
+                    FROM Rubro''')
+fetchedData = cursor.fetchall()
+print(fetchedData)
+
+cursor.execute('''SELECT *
+                    FROM Info_transacciones''')                 
+fetchedData = cursor.fetchall()
+print(fetchedData)
+
+cursor.execute('''SELECT *
+                    FROM Transacciones''')
+fetchedData = cursor.fetchall()
+print(fetchedData)
+
+cursor.execute('''SELECT *
+                    FROM Flujo''')
+fetchedData = cursor.fetchall()
+
+
+print(fetchedData)
+
+Base.commit()

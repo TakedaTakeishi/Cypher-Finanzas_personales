@@ -83,6 +83,17 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT ANUAL_MES_FIN_FK FOREIGN KEY (ANIO_FIN)      REFERENCES Mensual (MES_FIN)
                         );
     """) 
+
+    cursor.execute("""
+                CREATE TABLE Flujo(
+                            OPERACION_ID    integer NOT NULL
+                            ,INTERVALO      numeric
+                            ,INTERESES      numeric
+                            ,FECHA_FINAL    date
+                            ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID AUTOINCREMENT) 
+                        );
+    """)
+    
     
     cursor.execute("""
                     CREATE TABLE Rubro(
@@ -101,30 +112,21 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT I_ID_IT_PK PRIMARY KEY(INFO_ID AUTOINCREMENT)
                             ,CONSTRAINT INFO_RUBRO_R_ID_FK FOREIGN KEY (RUBRO_ID) REFERENCES Rubro (RUBRO_ID)
                         );
-    """)                  
+    """)
+                      
     cursor.execute("""
                     CREATE TABLE Transacciones(
                             TRANSACCION_ID      integer  NOT NULL
+                            ,OPERACION_ID       integer  NOT NULL
                             ,FECHA              datetime NOT NULL
                             ,INFO_ID            integer  NOT NULL
                             ,DIA_ID             integer  NOT NULL
                             ,CONSTRAINT T_D_T_PK PRIMARY KEY(TRANSACCION_ID AUTOINCREMENT)
                             ,CONSTRAINT TRANSAC_INFO_ID_FK FOREIGN KEY (INFO_ID)   REFERENCES Info_transacciones (INFO_ID)
                             ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)
+                            ,CONSTRAINT TRANSAC_OPE_ID_FK  FOREIGN KEY (OPERACION_ID) REFERENCES Flujo (OPERACION_ID)
                         );
-    """) #La fecha es para la hora y fecha de guardado.
-    
-    cursor.execute("""
-                CREATE TABLE Flujo(
-                            OPERACION_ID    integer NOT NULL
-                            ,TRANSACCION_ID integer NOT NULL
-                            ,INTERVALO      numeric
-                            ,INTERESES      numeric
-                            ,FECHA_FINAL    date
-                            ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID,TRANSACCION_ID)
-                            ,CONSTRAINT FLUJ_TRANS_ID_FK FOREIGN KEY (TRANSACCION_ID)   REFERENCES Transacciones (TRANSACCION_ID)  
-                        );
-    """)
+    """) #La fecha es para la hora y fecha del ingreso del registro de la transacción.
     
     
     
