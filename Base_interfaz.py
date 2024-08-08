@@ -10,6 +10,16 @@ def es_bisiesto(fecha):
     else:
         return False
 
+def eleccion(Pregunta):
+    while True:
+        choice = input(f"\n{Pregunta} (S/n)")
+        if (choice.upper() == 'S' or choice.upper() == 'N'):
+            if choice.upper() == 'S':
+                return True
+            elif choice.upper() == 'N':
+                return False
+        print('>>>Opción inválida, intenta otra vez.')
+
 #Que va a pedir y como
 
 def usuario_Crear(): 
@@ -77,7 +87,7 @@ def fecha_Inicial():
 def usuarios_Uno(file_path):
     with open(file_path, 'r') as file:
         # Leer la primera línea (y descartarla)
-        first_line = file.readline()
+        file.readline()
         # Leer la segunda línea
         second_line = file.readline()
         
@@ -284,22 +294,16 @@ def operacion(Base, cursor, Dia_ID, Fecha):
             caracterizacion = dato_Intervalo_Tipo(Fecha)
             intervalo =  dato_Intervalo_Numero(caracterizacion)
             fecha_final = ctr.base_Fecha()
-            choice = input("¿Cuenta con intereses? (s/n)")
-            while True:
-                if (choice.upper() == 'S' or choice.upper() == 'N'):
-                    if choice.upper() == 'S':
-                        continuar = True
-                        while continuar:
-                            porcentaje = input('¿Cuál es el porcentaje?: ') 
-                            if intereses.isnumeric():
-                                continuar = False
-                                intereses = int(porcentaje) / 100    
-                            else:
-                                print("¿Es número?")
-                        break
-                    elif choice.upper() == 'N':
-                        break  
-                    print('>>>Opción inválida, intenta otra vez.')
+            if eleccion('¿Cuenta con intereses?'):
+                seguir = True
+                while seguir:
+                    porcentaje = input('¿Cuál es el porcentaje?: ') 
+                    if intereses.isnumeric():
+                        seguir = False
+                        intereses = int(porcentaje) / 100    
+                    else:
+                        print("¿Es número?")
+
 
 
         else:  
@@ -307,16 +311,18 @@ def operacion(Base, cursor, Dia_ID, Fecha):
             fecha_final = None
             intereses = None
         ctr.insertOperation(Base, cursor, Dia_ID, concepto,cantidad,rubro,intervalo,fecha_final,intereses)
-        while True:
-            Seguir = input("¿Quieres seguir ingresando S/n? ")
-            if (Seguir.upper() == 'S' or Seguir.upper() == 'N'):
-                if Seguir.upper() == 'S':
-                    break
-                elif Seguir.upper() == 'N':
-                    Continuar = False
-                    break  
-            print('>>>Opción inválida, intenta otra vez.')
+
+        if eleccion('¿Quieres seguir ingresando?'):
+            break
+        else:
+            Continuar = False
+            break  
+
         
+# ------------------------------------- Datos ingresar -----------------------------------------------------
+
+
+
 def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo, 0 sin intervalo
     ultimo_dia, Dia_ID = ctr.fecha_Ultima(cursor)
     print(f"El último día es: {ultimo_dia}")
@@ -328,8 +334,25 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
     
     else:
         #Falta por terminar: Pregunta si quieres ingresar dia por día o pasar. Luego para cada dia pregunta si para ese día hay datos que ingresar.  
-        for _ in range(diferencia):
-            operacion(Base,cursor, Dia_ID, ultimo_dia)
+        print(f'Han pasado {diferencia} días.') 
+        choice = input("¿Quieres ingresar datos para esos días? (S/n): ")
+        while True:
+            if (choice.upper() == 'S' or choice.upper() == 'N'):
+                if choice.upper() == 'S':
+                    continuar = True
+                    while continuar:
+                        porcentaje = input('¿Cuál es el porcentaje?: ') 
+                        if intereses.isnumeric():
+                            continuar = False
+                            intereses = int(porcentaje) / 100    
+                        else:
+                            print("¿Es número?")
+                    break
+                elif choice.upper() == 'N':
+                    break  
+                print('>>>Opción inválida, intenta otra vez.')
+            for _ in range(diferencia):
+                operacion(Base,cursor, Dia_ID, ultimo_dia)
 
 def base_Cerrar(Base, cursor):
     Base.commit()
