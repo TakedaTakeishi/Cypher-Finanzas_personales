@@ -107,7 +107,7 @@ def Creacion_Tablas(Base, cursor):
                     CREATE TABLE Info_transacciones(
                             INFO_ID     integer  NOT NULL
                             ,CONCEPTO   text     NOT NULL
-                            ,CANTIDAD   numeric  NOT NULL
+                            ,MONTO   numeric  NOT NULL
                             ,RUBRO_ID   integer
                             ,CONSTRAINT I_ID_IT_PK PRIMARY KEY(INFO_ID AUTOINCREMENT)
                             ,CONSTRAINT INFO_RUBRO_R_ID_FK FOREIGN KEY (RUBRO_ID) REFERENCES Rubro (RUBRO_ID)

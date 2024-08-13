@@ -90,14 +90,14 @@ def insertRubro(cursor, rubro):
 
 
 
-def insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro = None):
+def insertInfo_transaccciones(Base, cursor, Concepto, Monto, Rubro = None):
     Info_Transacciones = '''INSERT INTO Info_transacciones
     VALUES(?, ?, ?, ?);'''
     if(Rubro):
         Rubro_id = insertRubro(cursor, Rubro)
     else:
         Rubro_id = None
-    cursor.execute(Info_Transacciones, (None, Concepto, Cantidad, Rubro_id)) #Falta verificar el rubro_id de rubro
+    cursor.execute(Info_Transacciones, (None, Concepto, Monto, Rubro_id)) #Falta verificar el rubro_id de rubro
     Base.commit()
 
     #Retornamos el ID
@@ -172,9 +172,9 @@ def insertar_fechas(cursor, fecha_inicio, num_dias):
 
 #ctr.insertOperation(Base, cursor, Dia_ID, concepto,cantidad,rubro,intervalo,fecha_final,intereses)
 
-def insertOperation(Base, cursor, Dia_ID, Concepto, Cantidad, Rubro = None, Intervalo = None, Fecha_final = None, Intereses = None):
+def insertOperation(Base, cursor, Dia_ID, Concepto, Monto, Rubro = None, Intervalo = None, Fecha_final = None, Intereses = None):
     Operacion_ID = insertFlujo(Base, cursor, Intervalo, Fecha_final, Intereses)
-    Info_ID = insertInfo_transaccciones(Base, cursor, Concepto, Cantidad, Rubro)
+    Info_ID = insertInfo_transaccciones(Base, cursor, Concepto, Monto, Rubro)
     
     Fecha_hora = datetime.now()
     print(f"La fecha y hora actual es: {Fecha_hora}")
@@ -194,6 +194,30 @@ def printDiario(cursor):
     print("\n--------Imprimiendo Info Diario:")
     cursor.execute('''SELECT *
                         FROM Diario''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printSemanal(cursor):
+    print("\n--------Imprimiendo Info Semanal:")
+    cursor.execute('''SELECT *
+                        FROM Semanal''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printMensual(cursor):
+    print("\n--------Imprimiendo Info Mensual:")
+    cursor.execute('''SELECT *
+                        FROM Mensual''')                 
+    fetchedData = cursor.fetchall()
+    for i in fetchedData:
+        print(i)
+
+def printAnual(cursor):
+    print("\n--------Imprimiendo Info Anual:")
+    cursor.execute('''SELECT *
+                        FROM Anual''')                 
     fetchedData = cursor.fetchall()
     for i in fetchedData:
         print(i)
@@ -232,7 +256,15 @@ def printFlujo(cursor):
     for i in fetchedData:
         print(i)
 
-
+def printAll(cursor):
+    printTransacciones(cursor)
+    printInfo_trasacciones(cursor)
+    printRubro(cursor)
+    printFlujo(cursor)
+    printDiario(cursor)
+    printSemanal(cursor)
+    printMensual(cursor)
+    printAnual(cursor)
 
 #------------------------------------------------------------------------------------------------------------------------------------
 #--------------------------------------------CREACIÓN DE USUARIOS Y BASES------------------------------------------------------------
@@ -317,6 +349,7 @@ def usuarios_Dir(Base_Nombre):
     return archivo_ruta
 
 def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y 2 para conectarse directamente.
+    
     Base_Nombre = Nombre.strip() + ".db"                                               
     #Si no existe una base de datos, entonces se debe crea.
     archivo_en_carpeta = usuarios_Dir(Base_Nombre)
@@ -348,8 +381,3 @@ def fecha_Ultima(cursor):
 def datos_Semana(cursor):
     pass
     cursor.execute()
-
-
-
-
-
