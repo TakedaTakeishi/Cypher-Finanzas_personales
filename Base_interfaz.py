@@ -108,6 +108,43 @@ def fecha_ingresar():
     return f"{anio:04d}-{mes:02d}-{dia:02d}"
         
 
+def fecha_compara(Fecha_principal, Fecha_secundaria):
+    if (type(Fecha_principal) is not datetime):
+        F_principal = datetime.strptime(Fecha_principal, "%Y-%m-%d")
+    if (type(Fecha_secundaria) is not datetime):
+        F_secundaria = datetime.strptime(Fecha_secundaria, "%Y-%m-%d")
+    if F_principal > F_secundaria:
+        return 1
+    elif F_principal < F_secundaria:
+        return -1
+    elif F_principal == F_secundaria:
+        return 0
+        
+def fecha_Inicial():
+    fecha_hora_actual = datetime.now()
+    print(".:Fecha a iniciar analisis:.")
+    while True:
+        entered_date_str = fecha_ingresar()
+        entered_date = datetime.strptime(entered_date_str, "%Y-%m-%d")
+        if entered_date <= fecha_hora_actual:
+            break
+        else:
+            print(">>>La fecha no puede ser mayor a la fecha actual")
+    return entered_date_str
+   
+def fecha_Final(Fecha_operacion):
+    while True:
+        print("Ingrese una fecha de finalizacion:")
+        fecha = fecha_ingresar()
+        var = fecha_compara(fecha,Fecha_operacion)
+        if var != 1:
+            print(">>>Debe ser una fecha futura al día de la operación")
+        else:
+            return fecha
+
+def fecha_Seleccionar(Base, cursor):
+    Anios = ctr.obtener_Anios(Base, cursor)
+        
 #Que va a pedir y como
 
 def usuario_Crear(): 
@@ -129,17 +166,6 @@ def usuario_Asigna(ruta, Nombre):
 
 #def fecha_
 
-def fecha_Inicial():
-    fecha_hora_actual = datetime.now()
-    print(".:Fecha a iniciar analisis:.")
-    while True:
-        entered_date_str = fecha_ingresar()
-        entered_date = datetime.strptime(entered_date_str, "%Y-%m-%d")
-        if entered_date <= fecha_hora_actual:
-            break
-        else:
-            print(">>>La fecha no puede ser mayor a la fecha actual")
-    return entered_date_str
 
 
 def usuarios_Uno(file_path):
@@ -154,13 +180,6 @@ def usuarios_Uno(file_path):
             return True
         else:
             return False
-'''        
-def contar_lineas(archivo):
-    with open(archivo, 'r') as f:
-        contenido = f.read()
-    lineas = contenido.splitlines()
-    return len(lineas)
-'''
 
 def usuario_Nuevo():
     ruta = path.realpath('Usuarios.txt')
@@ -198,21 +217,33 @@ def usuarios_menu():
         print(f'{i}. {string}', end='')
     #Enviamos i para saber el número máximo de usuarios.
     return i
-        
+
+def usuario_leer(ruta, file):
+    if path.getsize(ruta) > 0:
+        #Para saber si tenemos más de un usuario comprobamos
+        if (usuarios_Uno(ruta)):
+            Nombre = file.readlines()[0]
+        else:
+            Nombre = usuarios_Elegir(usuarios_menu())
+        Base, cursor = ctr.base_Inicializar(2, Nombre)
+    else:
+        print("\n >>>No hay usuario creado, crea uno nuevo<<< \n")
+        Base, cursor, Nombre = usuario_Nuevo()
+    return Base, cursor, Nombre
 
 def usuario_Iniciar():
-    ruta = path.realpath('Usuarios.txt')
-    with open(ruta,'r') as file: 
-        if path.getsize(ruta) > 0:
-            #Para saber si tenemos más de un usuario comprobamos
-            if (usuarios_Uno(ruta)):
-                Nombre = file.readlines()[0]
-            else:
-                Nombre = usuarios_Elegir(usuarios_menu())
-            Base, cursor = ctr.base_Inicializar(2, Nombre)
-        else:
-            print("\n >>>No hay usuario creado, crea uno nuevo<<< \n")
-            Base, cursor, Nombre = usuario_Nuevo()
+#     ruta = path.realpath('Usuarios.txt')
+#     print(f'La ruta de usuarios txt es: {ruta}')
+    ruta = 'Usuarios.txt'
+    # Si existe leemos si no escribimos y creamos
+    if (os.path.exists(ruta)):
+        with open(ruta,'r') as file:
+             
+            Base, cursor, Nombre = usuario_leer(ruta, file)    
+    else:
+        with open(ruta,'w') as file: 
+            
+            Base, cursor, Nombre = usuario_leer(ruta, file) 
     return Base, cursor, Nombre.strip()
 
 
@@ -337,7 +368,7 @@ def dato_Intervalo_Numero(Tipo):
 
 def printOperacion(concepto, monto, rubro, intervalo, fecha_final, intereses):
     print(f'Concepto:\t{concepto}')
-    print(f'Monto:\t${monto}')
+    print(f'Monto:\t\t${monto}')
     if(rubro is not None):
         print(f'rubro:\t\t{rubro}')
     if(intervalo is not None):
@@ -347,74 +378,15 @@ def printOperacion(concepto, monto, rubro, intervalo, fecha_final, intereses):
     if(intereses is not None):
         print(f'intereses:\t{intereses}%')
     print()
-'''
-def operacion(Base, cursor, Dia_ID, Fecha):
-    while True:
-        choice = submenu('Operaciones', '¿Qué tipo de operación quieres?', ('Simple', 'Recurrente') )
-        if choice == 0:
-            break
-        # Verificar los datos.
-        concepto =  input_validado("Ingresa el concepto: ", 5)
-        if(concepto == 'Cancelar'):
-            continue
-        monto = input_validado("Ingresa la monto: ", 2)
-        rubro = None
-        intervalo =  None
-        fecha_final = None
-        intereses = None
-        if choice == 2 :
-            intervalo =  dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
-            if (intervalo is None):
-                choice = 1
-                rubro = input_rubro()
-            else:
-                rubro = input_validado("Ingresa el Rubro: ", 5) 
-                if eleccion('¿Tiene fecha de finalización?'):
-                    fecha_final = fecha_ingresar()
-                    
-                if eleccion('¿Cuenta con intereses?'):
-                    porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
-                    intereses = porcentaje / 100    
 
-        else:
-            rubro = input_rubro()
-                
-        opcion = None
-        continuar = True
-        opciones = ('Concepto','Rubro','Monto','intervalo','Porcentaje','Fecha final')
-        while(continuar == True):
-            printOperacion(choice, concepto, monto, rubro, intervalo, fecha_final, intereses)
-            if(eleccion('¿Desea cambiar algo?')):
-                if(choice == 2):
-                    opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones)
-                else:
-                    opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones[:-3])
-                match(opcion):
-                    case 0: break
-                    case 1: concepto =  input_validado("Ingresa el concepto: ", 4)
-                    case 2: rubro = input_rubro() 
-                    case 3: monto = input_validado("Ingresa la monto: ", 2)
-                    case 4: intervalo =  dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
-                    case 5: 
-                        porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
-                        intereses = porcentaje / 100  
-                    case 6: fecha_final = fecha_ingresar()
-                
-            else: break
-        
-        if(eleccion('¿Insertar la operación?')):
-            ctr.insertOperation(Base, cursor, Dia_ID, concepto,monto,rubro,intervalo,fecha_final,intereses)
-
-        if not eleccion('¿Quieres seguir ingresando más operaciones?'):
-            break
-'''
 def operacion(Base, cursor, Dia_ID, Fecha):
     Operaciones = []
+    operacion = 0
     while True:
         opciones = ('Crear operaciones', 'Mostrar operaciones', 'Borrar operación', 'Modificar operación', 'Guardar operación')
         opcion = submenu(f"Menu Ingreso Fecha: {Fecha}", 'Elige que deseas hacer', opciones)
         match opcion:
-            case 0: break
+            case 0: return operacion
             case 1:
                 while True:
                     choice = submenu('Operaciones', '¿Qué tipo de operación quieres?', ('Simple', 'Recurrente') )
@@ -437,7 +409,7 @@ def operacion(Base, cursor, Dia_ID, Fecha):
                         else:
                             rubro = input_validado("Ingresa el Rubro: ", 5) 
                             if eleccion('¿Tiene fecha de finalización?'):
-                                fecha_final = fecha_ingresar()
+                                fecha_final = fecha_Final(Fecha)
                                 
                             if eleccion('¿Cuenta con intereses?'):
                                 porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
@@ -450,67 +422,165 @@ def operacion(Base, cursor, Dia_ID, Fecha):
                     Operaciones.append(Tupla)
             case 2:
                 i = 1
-                for op in Operaciones:
+                for tupla in Operaciones:
                     print(f'\n\tOperación: {i}')
-                    printOperacion(op[0], op[1], op[2], op[3], op[4], op[5])
+                    printOperacion(tupla[0], tupla[1], tupla[2], tupla[3], tupla[4], tupla[5])
                     i = i + 1
             case 3:
                 i = 0
                 opciones = []
-                for op in Operaciones:
-                    opciones.append(op[0])    
+                for tupla in Operaciones:
+                    opciones.append(tupla[0])    
                 opcion = submenu('Borrar', '¿Cuál quieres borrar?', opciones)
                 
                 if opcion !=0 and eleccion(f'¿Seguro que quieres borrar: {opciones[opcion-1]}'):
                     Operaciones.pop(opcion-1)
             case 4:
-                i = 0
                 opciones = []
-                for op in Operaciones:
-                    opciones[i].append(op[0])    
-                op = submenu('Borrar', '¿Cuál quieres cambiar?', opciones)
-                if op !=0 and eleccion(f'¿Seguro que quieres cambiar: {opciones[opcion-1]}'):
-                    Tupla = Operaciones[op-1]
+                for tupla in Operaciones:
+                    opciones.append(tupla[0])    
+                tupla = submenu('Modificación', '¿Cuál quieres cambiar?', opciones)
+                if tupla !=0:
+                    Tupla = Operaciones[tupla-1]
                     lista = list(Tupla)
                     opcion = None
                     continuar = True
                     opciones = ('Concepto', 'Monto', 'Rubro', 'Intervalo', 'Fecha final' ,'Intereses')
-                    while(continuar == True):
+                    while continuar:
                         # 'Concepto', 'Monto', 'Rubro', 'Intervalo', 'Fecha final' ,'Intereses'
                         printOperacion(lista[0], lista[1], lista[2], lista[3], lista[4], lista[5])
-                        if(eleccion('¿Desea cambiar algo?')):
-                            if(Tupla[3] is not None):
-                                opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones)
-                            else:
-                                opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones[:-3])
-                            match(opcion):
-                                case 0: break
-                                case 1: lista[0] = input_validado("Ingresa el concepto: ", 4)
-                                case 2: lista[1] = input_validado("Ingresa la monto: ", 2)
-                                case 3: lista[2] = input_rubro()
-                                case 4: lista[3] =  dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
-                                case 5: lista[4] = fecha_ingresar() # Verificar que la fecha ingresada sea mayor a la actual.
-                                case 6: 
-                                    porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
-                                    lista[5] = porcentaje / 100  
-                        else: break                   
+                        if(Tupla[3] is not None):
+                            opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones)
+                        else:
+                            opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones[:-3])
+                        match(opcion):
+                            case 0: break
+                            case 1: lista[0] = input_validado("Ingresa el concepto: ", 4)
+                            case 2: lista[1] = input_validado("Ingresa la monto: ", 2)
+                            case 3: lista[2] = input_validado("Ingrese el rubro: ",5)
+                            case 4: lista[3] = dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
+                            case 5:
+                                lista[4] = fecha_Final(Fecha)
+                            
+                            case 6: 
+                                porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
+                                lista[5] = porcentaje / 100
+                        Operaciones[tupla-1] = tuple(lista)
+                        
+                    
+            case 5:
+                #Si esta vacío no ingresa.
+                if bool(Operaciones) is False:
+                    print('>>>No hay operaciones para ingresar')
+                else:
+                    for Tupla in Operaciones:
+                        ctr.insertOperation(Base, cursor, Dia_ID, Tupla[0],Tupla[1],Tupla[2],Tupla[3],Tupla[4],Tupla[5])      
+                    # Si deseamos que el usuario pueda guardar varias veces la misma operación u operaciones entonces debemos quitar o modificar la línea de abajo que es la que reinicia todo.
+                    operacion += len(Operaciones)
+                    Operaciones = []
 
-# ¿Cual quieres borrar?
-# 1. Comida para Pepe
-# 2. Compra de Carro 
-# 3.
-# 0. Salir
-# remove(choise-1)
 
-# submenu-----------------
-# ----------Menu Ingreso <Dia>--------
-# 1. datos_ingresar
-# 2. Mostrar operaciones
-# 3. Borrar operacion
-# 4. Modificar operacion
-# 5. Guardar operacion
-# 6. Salir
-
+def modificar(Base, cursor, Dia_ID, Fecha):
+    
+    Operaciones = ctr.obtener_Transacciones(Base, cursor, Dia_ID) # Verificar si existe o no Transacciones.
+    Modicaciones = []
+    modificacion = 0
+    while True:
+        opciones = ('Elejir operación a modificar', 'Mostrar modificaciones', 'Borrar modificación', 'Editar modificación', 'Guardar modificaciones')
+        opcion = submenu(f"Menu Modificación Operaciones de {Fecha}: ", 'Elige que deseas hacer', opciones)
+        match opcion:
+            case 0: return modificacion
+            case 1:
+                # Mostrar operaciones del dia
+                while True:
+                    choice = submenu('Operaciones', '¿Qué tipo de operación quieres?', ('Simple', 'Recurrente') )
+                    if choice == 0:
+                        break
+                    # Verificar los datos.
+                    concepto =  input_validado("Ingresa el concepto: ", 5)
+                    if(concepto == 'Cancelar'):
+                        continue
+                    monto = input_validado("Ingresa la monto: ", 2)
+                    rubro = None
+                    intervalo =  None
+                    fecha_final = None
+                    intereses = None
+                    if choice == 2 :
+                        intervalo =  dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
+                        if (intervalo is None):
+                            choice = 1
+                            rubro = input_rubro()
+                        else:
+                            rubro = input_validado("Ingresa el Rubro: ", 5) 
+                            if eleccion('¿Tiene fecha de finalización?'):
+                                fecha_final = fecha_Final(Fecha)
+                                
+                            if eleccion('¿Cuenta con intereses?'):
+                                porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
+                                intereses = porcentaje / 100    
+                    
+                    else:
+                        rubro = input_rubro() 
+                    
+                    Tupla = (concepto, monto, rubro, intervalo, fecha_final, intereses)
+                    Operaciones.append(Tupla)
+            case 2:
+                i = 1
+                for tupla in Operaciones:
+                    print(f'\n\tOperación: {i}')
+                    printOperacion(tupla[0], tupla[1], tupla[2], tupla[3], tupla[4], tupla[5])
+                    i = i + 1
+            case 3:
+                i = 0
+                opciones = []
+                for tupla in Operaciones:
+                    opciones.append(tupla[0])    
+                opcion = submenu('Borrar', '¿Cuál quieres borrar?', opciones)
+                
+                if opcion !=0 and eleccion(f'¿Seguro que quieres borrar: {opciones[opcion-1]}'):
+                    Operaciones.pop(opcion-1)
+            case 4:
+                opciones = []
+                for tupla in Operaciones:
+                    opciones.append(tupla[0])    
+                tupla = submenu('Modificación', '¿Cuál quieres cambiar?', opciones)
+                if tupla !=0:
+                    Tupla = Operaciones[tupla-1]
+                    lista = list(Tupla)
+                    opcion = None
+                    continuar = True
+                    opciones = ('Concepto', 'Monto', 'Rubro', 'Intervalo', 'Fecha final' ,'Intereses')
+                    while continuar:
+                        # 'Concepto', 'Monto', 'Rubro', 'Intervalo', 'Fecha final' ,'Intereses'
+                        printOperacion(lista[0], lista[1], lista[2], lista[3], lista[4], lista[5])
+                        if(Tupla[3] is not None):
+                            opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones)
+                        else:
+                            opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones[:-3])
+                        match(opcion):
+                            case 0: break
+                            case 1: lista[0] = input_validado("Ingresa el concepto: ", 4)
+                            case 2: lista[1] = input_validado("Ingresa la monto: ", 2)
+                            case 3: lista[2] = input_validado("Ingrese el rubro: ",5)
+                            case 4: lista[3] = dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
+                            case 5:
+                                lista[4] = fecha_Final(Fecha)
+                            
+                            case 6: 
+                                porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
+                                lista[5] = porcentaje / 100
+                        Operaciones[tupla-1] = tuple(lista)
+                    
+            case 5:
+                #Si esta vacío no ingresa.
+                if bool(Operaciones) is False:
+                    print('>>>No hay operaciones para ingresar')
+                else:
+                    for Tupla in Operaciones:
+                        ctr.insertOperation(Base, cursor, Dia_ID, Tupla[0],Tupla[1],Tupla[2],Tupla[3],Tupla[4],Tupla[5])      
+                    # Si deseamos que el usuario pueda guardar varias veces la misma operación u operaciones entonces debemos quitar o modificar la línea de abajo que es la que reinicia todo.
+                    modificacion += len(Operaciones)
+                    Modicaciones = []
 
 
 def DL(fecha):
@@ -527,7 +597,7 @@ def DL(fecha):
 
 
 def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo, 0 sin intervalo
-    ultimo_dia, Dia_ID = ctr.fecha_Ultima(cursor)
+    ultimo_dia, Dia_ID = ctr.fecha_Max(cursor)
     ultimo_dia_txt = DL(ultimo_dia)
     print(f"El último día es: {ultimo_dia_txt}")
     diferencia = ctr.diferencia(cursor, datetime.now(), ultimo_dia,'d')
@@ -546,8 +616,36 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
                 fecha_actual_str = fecha_objeto.strftime('%Y-%m-%d')
                 fecha_actual_txt = DL(fecha_objeto)
                 if eleccion(f'Para la fecha {fecha_actual_txt} ¿Quieres ingresar datos?'):
-                    operacion(Base,cursor, Dia_ID, fecha_actual_str)
+                    Dia_id_N = ctr.fecha_Dia_ID(cursor,fecha_actual_str)
+                    operacion(Base,cursor, Dia_id_N, fecha_actual_str)
     
+def datos_Modificar(Base, cursor):
+    #Para conocer hasta el día en que se pueden hacer cambios.
+    _, Dia_ID_Max = ctr.fecha_Max(cursor)
+    Fecha, Dia_ID = fecha_Seleccionar(Base, cursor) #YYYY-MM-DD
+    Dia_ID_Inicio = Dia_ID
+    Num_Operaciones = 0
+    
+    while True:
+        opcion = submenu(f'Modificar el {Fecha}', '¿Qué deseas realizar?', ('Agregar operaciones', 'Modificar alguna operación', 'Cambiar día'))
+        # Usamos Num_Operaciones para ver cuántas actualizaciones de saldos se realizarán.
+        match opcion:
+            case 0: break
+            case 1: 
+                Num_Operaciones += operacion(Base, cursor, Dia_ID, Fecha)                           
+            case 2: 
+                Num_Operaciones += modificar(Base, cursor, Dia_ID, Fecha) # En construcción
+            case 3: 
+                Fecha, Dia_ID = fecha_Seleccionar(Base,cursor) # En construcción
+                if Num_Operaciones == 0:
+                    Dia_ID_Inicio = Dia_ID
+                elif fecha_compara(Dia_ID, Dia_ID_Inicio) == -1:
+                    Dia_ID_Inicio = Dia_ID
+
+    # Antes de actualizar los saldos y para que no se actualicen de manera innecesaria.
+    if Num_Operaciones != 0 and Dia_ID_Inicio != Dia_ID_Max:          
+        ctr.updateSaldos(Base, cursor, Dia_ID_Inicio, Dia_ID_Max)
+
 
 def base_Cerrar(Base, cursor):
     Base.commit()
@@ -555,7 +653,7 @@ def base_Cerrar(Base, cursor):
     Base.close()
     print("Base cerrada...")
     
-def menu_mostrar(cursor):
+def datos_Mostrar(cursor):
     while True:
         opciones = ('Todo', 'Transacciones', 'Info transacciones', 'Rubros', 'Flujo', 'Diario', 'Semanal', 'Mensual', 'Anual')
         opcion = submenu('Mostrar DATOS','¿Que tabla quieres que muestre?', opciones)
@@ -582,7 +680,8 @@ def menu_mostrar(cursor):
                 ctr.printAnual(cursor)
             case _:
                 print(">>>Opción no valida")
-    
+
+   
 # --------------------------------------Menu --------------------------------------------------------
 def menu():
     #Para no tener que configurar varias veces el tiempo local en su formato, lo hacemos aquí.
@@ -606,11 +705,11 @@ def menu():
                 datos_Ingresar(Base, cursor)
             case 2:
                 print('--En construccion')
-                menu_mostrar(cursor)
-            #     #datos_Mostrar(cursor)
+                datos_Mostrar(cursor)
             case 3:
                 print('En construccion')
-            #     datos_Modificar()
+                datos_Modificar(Base, cursor)
+                
             case 4:
                 base_Cerrar(Base, cursor)
                 Usuario = usuarios_Elegir(usuarios_menu())         
@@ -628,7 +727,52 @@ def menu():
 
 #---------------------------------- MAIN -----------------------------------
 menu()
-# Revisar si se crean el archivo Usuario.txt automáticamente.
+
+'''
+(Si sólo hay uno entonces se elige ese, si hay más de uno te deja escoger)
+(Se cuparán submenú, salir es retroceder al menú anterior)
+¿Qué año deseas cambiar? (Sólo se pueden modificar hasta el año anterior por la limitación del trigger)
+año 1
+    ¿Qué mes deseas modificar?
+    1
+        Todos los dias de es mes.
+        y te de a escoger que dia quieres cambiar
+            
+            Debe haber un submenú para preguntar si se quiere agregar operaciones o modificar las existentes.
+            opcion 1
+                insertar una operacion en ese dia 
+
+
+            opcion 2
+                Te muestra todas las transcciones de ese día 
+                transaccion 1
+                    ya que escogiste la transaccion poder cambiar lo que este en esa transaccion 1
+                    se tiene que actualizar en la base de datos
+                transaccion 2
+                transaccion 3
+                transaccion 4
+    2
+    3
+    4
+    5
+    ..
+    12
+año 2
+año 3
+año 4
+    mes 1
+    mes 2
+    ^ Debe haber pasado el mes para que se muestre
+'''
+#Transacciones:
+#1 1 16
+#...
+#200 1 16
+
+
+# Hacer un trigger que al acualizar el monto de Info_Transacción entonces actualice todas las filas los días a los que esté incluido las transacciones que la usan.
+# Hacer una función que actualiza recursivamente los saldos desde la primera modifición en tiempo dentro de los datos. Se usará, al finalizar el programa o al querer visualizar los datos.
+# Hacer la validación: monto no debe ser cero
 # Probar el ingresar datos para recurrentes. (Terminar el menú opción 4 y una función para comparar las fechas.)
 # Hacer una validación para cancelar la operacion actual.
 # Hacer la función o funciones para comparar fechas sin importar si son objetos (datatime) o strings (estándar).
@@ -636,3 +780,10 @@ menu()
 # validar que en concepto y el rubro para que no sean numeros.
 # Hacer que el porcentaje tenga un % para el ingreso del dato sin que el usuario lo ponga. input('Porcentaje (%)': )    Porcentaje: %
 # Hacer un submenú para los rubros y dejarte elegir.
+
+
+
+
+
+
+# Revisar si se crean el archivo Usuario.txt automáticamente.

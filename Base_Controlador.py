@@ -1,6 +1,5 @@
 import sqlite3 as sql
 import Base_Creacion as bc
-import Base_Insercion as bi
 from urllib.request import pathname2url
 import os
 import re
@@ -38,7 +37,7 @@ from datetime import datetime, timedelta
 def insertDiario(Base, cursor, Fecha):
     Diario = """INSERT INTO Diario
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-    cursor.execute(Diario, (None,Fecha,None,None,None,None,None,None,None))
+    cursor.execute(Diario, (None,Fecha,0,0,0,0,0,0,0))
     Base.commit()
     ''' 
                 CREATE TABLE Diario(
@@ -158,10 +157,13 @@ def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = 
                         ,INTERESES      numeric
                         ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID,TRANSACCION_ID)
                     );
+
     '''
+
 #=============================================================================================================
 #                                          ===Insertar un Dato===
 #=============================================================================================================
+
 # Función para insertar fechas en la tabla
 def insertar_fechas(cursor, fecha_inicio, num_dias):
     fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d')
@@ -188,8 +190,34 @@ def generarDias(Base, cursor, fecha_inicio, num_dias):
     Base.commit()    
 
 #=============================================================================================================
+#                                          === Modificar Tablas ===
+#=============================================================================================================
+
+def updateSaldos(Base, cursor, Dia_ID_Inicio, Dia_ID_Final):
+    for Dia_ID in range(Dia_ID_Inicio, Dia_ID_Final):
+        cursor.execute(
+        f'''
+            UPDATE Diario
+                SET SALDO = DIA_SALDO + COALESCE((SELECT SALDO FROM Diario WHERE DIA_ID = {Dia_ID}), 0)
+                WHERE DIA_ID = {Dia_ID} + 1
+                AND EXISTS (SELECT 1 FROM Diario WHERE DIA_ID = {Dia_ID} + 1);
+        
+        '''
+        )
+    Base.commit()
+                            
+
+
+
+
+def modifTransacc():
+    Transacciones = '''UPDATE Transacciones
+                        SET '''
+
+#=============================================================================================================
 #                                          === IMPRESIONES ===
 #=============================================================================================================
+
 def printDiario(cursor):
     print("\n--------Imprimiendo Info Diario:")
     cursor.execute('''SELECT *
@@ -266,8 +294,28 @@ def printAll(cursor):
     printMensual(cursor)
     printAnual(cursor)
 
-#------------------------------------------------------------------------------------------------------------------------------------
-#--------------------------------------------CREACIÓN DE USUARIOS Y BASES------------------------------------------------------------
+#=============================================================================================================
+#                                          === Obtener datos ===
+#=============================================================================================================
+def obtener_Transacciones(Base, cursor, Dia_ID):
+    cursor.execute(f'''SELECT T.TRANSACCION_ID, I.INFO_ID, I.CONCEPTO, I.MONTO, I.RUBRO_ID, R.TIPO
+                      FROM Transacciones T 
+                      JOIN Info_Transacciones I ON T.INFO_ID = I.INFO_ID  
+                      LEFT JOIN RUBRO R ON I.RUBRO_ID = R.RUBRO_ID
+                      WHERE T.DIA_ID = {Dia_ID}''')
+    return cursor.fetchall()
+
+def obtener_Anios(Base, cursor):
+    valores  = cursor.execute('''SELECT FECHA FROM Diario''')
+
+#=============================================================================================================
+#                                          === CREACION DE USUARIO Y BASES ===
+#=============================================================================================================
+
+def modifTransacc():
+    Transacciones = '''INSERT INTO Transacciones
+    VALUES(?, ? ,?, ?, ?);'''
+
 def nombre_BD(Nombre):
     Nombre_Base = Nombre.strip() + ".bd"
     return Nombre_Base
@@ -371,12 +419,20 @@ def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y
 
 
 #----------------------------CONSULTAS----------------------------
-def fecha_Ultima(cursor):
+def fecha_Max(cursor):
     cursor.execute("""SELECT MAX(FECHA) FROM Diario""")
     Fecha = cursor.fetchall()[0][0]
     cursor.execute("""SELECT MAX(DIA_ID) FROM Diario""")
     Dia_ID = cursor.fetchall()[0][0]
     return Fecha, Dia_ID
+
+def fecha_Dia_ID(cursor, Fecha):
+    cursor.execute(f'''SELECT DIA_ID FROM Diario
+                      WHERE FECHA = "{Fecha}"''')
+    Dia_ID = cursor.fetchall()[0][0]
+    print(f'El día ID de {Fecha} es {Dia_ID}.')
+    return Dia_ID
+
 
 def datos_Semana(cursor):
     pass
