@@ -9,50 +9,29 @@ import pathlib
 from os import path
 from datetime import datetime, timedelta
 
+#=============================================================================================================
+#                                          === INSERCIONES ===
+#=============================================================================================================
 
-
-#                        Consideraciones                          
-#---------------------------------------------------------------------
-#Verificar si existe la base de datos
-    #Si no existe la crea usando Base_Creacion en el día especificado
-
-    #Y sólo se ejecuta una vez
-
-    #Devuelve verdadero si se creo correctamente
-#---------------------------------------------------------------------
-
-# --------------------------------------------------------------------- 
-# Fecha:'YYYY-MM-DD'
-# os.path.realpath se ejecuta para darnos las ruta completa de el nombre que esta en ella
-# ---------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------------------------------------------
-# Necesitamos una función para comparar la fecha actual con la ingresada de modo que no se ponga una fecha futura.
-# Mejorar los comentarios.
-# ---------------------------------------------------------------------------------------------------------------
-
-
-# ------------------------------------------INSERSIONES----------------------------------------------------------
-
-def insertDiario(Base, cursor, Fecha):
+def insertFecha(Base, cursor, Fecha):
     Diario = """INSERT INTO Diario
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""
     cursor.execute(Diario, (None,Fecha,0,0,0,0,0,0,0))
+
+    Semanal = """INSERT INTO Semanal
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+    cursor.execute(Semanal, (None,Fecha,0,0,0,0,0,0,0))
+
+    Mensual = """INSERT INTO Mensual
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+    cursor.execute(Mensual, (None,Fecha,0,0,0,0,0,0,0))
+
+    Anual = """INSERT INTO Anual
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+    cursor.execute(Anual, (None,Fecha,0,0,0,0,0,0,0))
+
     Base.commit()
-    ''' 
-                CREATE TABLE Diario(
-                        DIA_ID      integer NOT NULL
-                        ,FECHA      date    NOT NULL
-                        ,DIA_INGRESO    numeric
-                        ,DIA_EGRESO     numeric
-                        ,DIA_SALDO      numeric
-                        ,SALDO          numeric
-                        ,PROMEDIO       numeric
-                        ,MEDIANA        numeric
-                        ,MODA           numeric
-                        ,CONSTRAINT D_ID_PK PRIMARY KEY (DIA_ID AUTOINCREMENT)
-                    );
-    '''
+    
 
 
 def insertRubro(cursor, rubro):
@@ -72,12 +51,11 @@ def insertRubro(cursor, rubro):
     else:
         print("El rubro ya existe.")
     
-    cursor.execute('''SELECT *
+    cursor.execute('''SELECT RUBRO_ID
                     FROM Rubro
                     WHERE UPPER(TIPO) = "{}"'''.format(Tipo))
-    fetchedData = cursor.fetchall()[0][0]
-    
-    return fetchedData
+   
+    return cursor.fetchall()[0][0]
         
     '''
                 CREATE TABLE Rubro(
@@ -139,8 +117,8 @@ def insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID)
 
 def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = None):
     Flujo = '''INSERT INTO Flujo
-    VALUES(?, ?, ?, ?);'''
-    cursor.execute(Flujo, (None, Intervalo, Fecha_final, Intereses))
+    VALUES(?, ?, ?, ?, ?);'''
+    cursor.execute(Flujo, (None, Intervalo, Fecha_final, Intereses, None))
     Base.commit()
 
     cursor.execute('''SELECT MAX(OPERACION_ID)
@@ -159,10 +137,6 @@ def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = 
                     );
 
     '''
-
-#=============================================================================================================
-#                                          ===Insertar un Dato===
-#=============================================================================================================
 
 # Función para insertar fechas en la tabla
 def insertar_fechas(cursor, fecha_inicio, num_dias):
@@ -205,8 +179,43 @@ def updateSaldos(Base, cursor, Dia_ID_Inicio, Dia_ID_Final):
         '''
         )
     Base.commit()
-                            
 
+def updateOperacion (Base, cursor, Tupla):
+    # [(CONCEPTO, MONTO, TIPO, INTERVALO, FECHA_FINAL, INTERESES, TRANSACCION_ID, OPERACION_ID, INFO_ID)]                         
+    CONCEPTO, MONTO, TIPO, INTERVALO, FECHA_FINAL, INTERESES, TRANSACCION_ID, OPERACION_ID, INFO_ID = Tupla[0], Tupla[1], Tupla[2], Tupla[3], Tupla[4], Tupla[5], Tupla[6], Tupla[7], Tupla[8]
+    cursor.execute(f'''
+                UPDATE Transacciones
+                SET FECHA = {datetime.now}
+                WHERE TRANSACCION_ID = {TRANSACCION_ID}
+                ''')    
+    # Para comprobar que exista un rubro
+    if TIPO:
+        RUBRO_ID = insertRubro(cursor, TIPO)
+    else:
+        RUBRO_ID = None
+    
+    cursor.execute(f'''
+            UPDATE Info_transacciones
+            SET 
+                CONCEPTO  = {CONCEPTO}    
+                ,MONTO    = {MONTO}
+                ,RUBRO_ID = {RUBRO_ID}
+
+            WHERE INFO_ID = {INFO_ID}
+            ''')    
+
+    # Sólo en caso de que se se tenga intervalo
+    if INTERVALO:
+        cursor.execute(f'''
+                    UPDATE Flujo
+                    SET 
+                        INTERVALO    = {INTERVALO}
+                        ,FECHA_FINAL = {FECHA_FINAL}   
+                        ,INTERESES   = {INTERESES}
+
+                    WHERE OPERACION_ID = {OPERACION_ID}
+                    ''')
+    Base.commit()
 
 
 
@@ -298,21 +307,49 @@ def printAll(cursor):
 #                                          === Obtener datos ===
 #=============================================================================================================
 def obtener_Transacciones(Base, cursor, Dia_ID):
-    cursor.execute(f'''SELECT T.TRANSACCION_ID, I.INFO_ID, I.CONCEPTO, I.MONTO, I.RUBRO_ID, R.TIPO
+                                #concepto, monto, rubro, intervalo, fecha_final, intereses
+    cursor.execute(f'''SELECT I.CONCEPTO, I.MONTO, R.TIPO, O.INTERVALO, O.FECHA_FINAL, O.INTERESES, T.TRANSACCION_ID, T.OPERACION_ID, I.INFO_ID
                       FROM Transacciones T 
-                      JOIN Info_Transacciones I ON T.INFO_ID = I.INFO_ID  
+                      JOIN Info_Transacciones I ON T.INFO_ID = I.INFO_ID
+                      JOIN Flujo O ON T.OPERACION_ID = O.OPERACION_ID
                       LEFT JOIN RUBRO R ON I.RUBRO_ID = R.RUBRO_ID
                       WHERE T.DIA_ID = {Dia_ID}''')
     return cursor.fetchall()
 
-def obtener_Anios(Base, cursor):
-    valores  = cursor.execute('''SELECT FECHA FROM Diario''')
+def obtener_Anios(cursor):
+    cursor.execute('''SELECT ANIO_INICIO FROM Anual''')
+    fetchedData = cursor.fetchall()
+    anios = []
+    # fectchedData = [(2023-02-01,), (2024-01-01,), (2025-01-01,)]
+    for tupla in fetchedData:
+        anios.append(tupla[0][:4])
+    return anios
 
+def obtener_Meses(cursor, anio):
+    cursor.execute(f'''SELECT MES_INICIO 
+                        FROM Mensual
+                        WHERE strftime('%Y', MES_INICIO) = '{anio}';
+                        ''')
+    fetchedData = cursor.fetchall()
+    meses = []
+    # fectchedData = [(2023-02-01,), (2024-01-01,), (2025-01-01,)]
+    for tupla in fetchedData:
+        meses.append(tupla[0][6:8])
+    return meses
+
+def obtener_Dias(cursor, mes):
+    cursor.execute('''SELECT MES_INICIO FROM Mensual''')
+    fetchedData = cursor.fetchall()
+    meses = []
+    # fectchedData = [(2023-02-01,), (2024-01-01,), (2025-01-01,)]
+    for tupla in fetchedData:
+        meses.append(tupla[0][6:8])
+    return meses
 #=============================================================================================================
 #                                          === CREACION DE USUARIO Y BASES ===
 #=============================================================================================================
 
-def modifTransacc():
+def modifTransacc(): # ¿Este es útil?
     Transacciones = '''INSERT INTO Transacciones
     VALUES(?, ? ,?, ?, ?);'''
 
@@ -407,7 +444,7 @@ def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y
         case 1:
             #Por estar vacia 
             bc.Creacion_Tablas(Base, cursor)
-            insertDiario(Base, cursor, Fecha)
+            insertFecha(Base, cursor, Fecha)
             # cursor.execute(insertDiario, (None,Fecha,None,None,None,None,None,None,None)) #Se debe sustituir por Base_Insercion
             print("La base ha sido creada")
     print("\t.::Conectando a {}::." .format(Base_Nombre))   
@@ -416,9 +453,10 @@ def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y
     #Para no tener que cerrar la conexión la devolvemos
     return Base, cursor
 
+#=============================================================================================================
+#                                          === CONSULTAS ===
+#=============================================================================================================
 
-
-#----------------------------CONSULTAS----------------------------
 def fecha_Max(cursor):
     cursor.execute("""SELECT MAX(FECHA) FROM Diario""")
     Fecha = cursor.fetchall()[0][0]

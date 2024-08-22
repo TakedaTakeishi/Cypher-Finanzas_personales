@@ -17,7 +17,7 @@ def Creacion_Tablas(Base, cursor):
     cursor.execute("DROP TABLE IF EXISTS Diario;")
     
     #Creación de las tablas
-    cursor.execute(""" 
+    cursor.execute(''' 
                    CREATE TABLE Diario(
                             DIA_ID      integer NOT NULL
                             ,FECHA      date    NOT NULL
@@ -30,8 +30,8 @@ def Creacion_Tablas(Base, cursor):
                             ,MODA           numeric default 0
                             ,CONSTRAINT D_ID_PK PRIMARY KEY (DIA_ID AUTOINCREMENT)
                         );
-    """) 
-    cursor.execute("""
+    ''') 
+    cursor.execute('''
                     CREATE TABLE Semanal(
                             SEMANA_ID       integer NOT NULL
                             ,SEMANA_INICIO  date    NOT NULL
@@ -47,9 +47,9 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT SEM_DIA_INI_FK FOREIGN KEY (SEMANA_INICIO) REFERENCES Diario (DIA_ID)
                         	,CONSTRAINT SEM_DIA_FIN_FK FOREIGN KEY (SEMANA_FIN)    REFERENCES Diario (DIA_ID)
                         );
-    """) 
+    ''') 
     
-    cursor.execute("""
+    cursor.execute('''
                     CREATE TABLE Mensual(
                             MES_ID          integer NOT NULL
                             ,MES_INICIO     date    NOT NULL
@@ -65,9 +65,9 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT MES_DIA_INI_FK FOREIGN KEY (MES_INICIO)   REFERENCES Diario (DIA_ID)
                             ,CONSTRAINT MES_DIA_FIN_FK FOREIGN KEY (MES_FIN)      REFERENCES Diario (DIA_ID)
                         );
-    """)  
+    ''')  
     
-    cursor.execute("""
+    cursor.execute('''
                     CREATE TABLE Anual(
                             ANIO_ID         integer NOT NULL
                             ,ANIO_INICIO    date    NOT NULL
@@ -83,28 +83,29 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT ANUAL_MES_INI_FK FOREIGN KEY (ANIO_INICIO)   REFERENCES Mensual (MES_INICIO)
                             ,CONSTRAINT ANUAL_MES_FIN_FK FOREIGN KEY (ANIO_FIN)      REFERENCES Mensual (MES_FIN)
                         );
-    """) 
+    ''') 
 
-    cursor.execute("""
+    cursor.execute('''
                 CREATE TABLE Flujo(
                             OPERACION_ID    integer NOT NULL
                             ,INTERVALO      numeric
                             ,FECHA_FINAL    date
                             ,INTERESES      numeric
+                            ,ESTADO         boolean default TRUE
                             ,CONSTRAINT O_ID_PK PRIMARY KEY(OPERACION_ID AUTOINCREMENT) 
                         );
-    """)
+    ''')
     
     
-    cursor.execute("""
+    cursor.execute('''
                     CREATE TABLE Rubro(
                             RUBRO_ID    integer NOT NULL
                             ,TIPO       text    NOT NULL
                             ,CONSTRAINT RUBRO_ID_PK PRIMARY KEY (RUBRO_ID AUTOINCREMENT)
                             );
-    """) 
+    ''') 
     
-    cursor.execute("""
+    cursor.execute('''
                     CREATE TABLE Info_transacciones(
                             INFO_ID     integer  NOT NULL
                             ,CONCEPTO   text     NOT NULL
@@ -113,9 +114,9 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT I_ID_IT_PK PRIMARY KEY(INFO_ID AUTOINCREMENT)
                             ,CONSTRAINT INFO_RUBRO_R_ID_FK FOREIGN KEY (RUBRO_ID) REFERENCES Rubro (RUBRO_ID)
                         );
-    """)
+    ''')
                       
-    cursor.execute("""
+    cursor.execute('''
                     CREATE TABLE Transacciones(
                             TRANSACCION_ID      integer  NOT NULL
                             ,OPERACION_ID       integer  NOT NULL
@@ -127,7 +128,7 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)
                             ,CONSTRAINT TRANSAC_OPE_ID_FK  FOREIGN KEY (OPERACION_ID) REFERENCES Flujo (OPERACION_ID)
                         );
-    """) #La fecha es para la hora y fecha del ingreso del registro de la transacción.
+    ''') #La fecha es para la hora y fecha del ingreso del registro de la transacción.
     
 #--------------------------------------TRIGGERS--------------------------------------------
 ## Pasos para actualizar el saldo según los saldos anteriores
