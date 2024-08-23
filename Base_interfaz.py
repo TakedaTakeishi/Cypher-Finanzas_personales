@@ -761,43 +761,6 @@ def menu():
 
 menu()
 
-'''
-(Si sólo hay uno entonces se elige ese, si hay más de uno te deja escoger)
-(Se cuparán submenú, salir es retroceder al menú anterior)
-¿Qué año deseas cambiar? (Sólo se pueden modificar hasta el año anterior por la limitación del trigger)
-año 1
-    ¿Qué mes deseas modificar?
-    1
-        Todos los dias de es mes.
-        y te de a escoger que dia quieres cambiar
-            
-            Debe haber un submenú para preguntar si se quiere agregar operaciones o modificar las existentes.
-            opcion 1
-                insertar una operacion en ese dia 
-
-
-            opcion 2
-                Te muestra todas las transcciones de ese día 
-                transaccion 1
-                    ya que escogiste la transaccion poder cambiar lo que este en esa transaccion 1
-                    se tiene que actualizar en la base de datos
-                transaccion 2
-                transaccion 3
-                transaccion 4
-    2
-    3
-    4
-    5
-    ..
-    12
-año 2
-año 3
-año 4
-    mes 1
-    mes 2
-    ^ Debe haber pasado el mes para que se muestre
-'''
-
 #=============================================================================================================
 #                                          === A realizar ===
 #=============================================================================================================
