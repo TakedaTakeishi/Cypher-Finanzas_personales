@@ -34,8 +34,8 @@ def Creacion_Tablas(Base, cursor):
     cursor.execute('''
                     CREATE TABLE Semanal(
                             SEMANA_ID       integer NOT NULL
-                            ,SEMANA_INICIO  date    NOT NULL
-                            ,SEMANA_FIN     date    NOT NULL
+                            ,SEMANA_INICIO  integer NOT NULL
+                            ,SEMANA_FIN     integer
                             ,SEMANA_INGRESO numeric default 0
                             ,SEMANA_EGRESO  numeric default 0
                             ,SEMANA_SALDO   numeric default 0
@@ -52,8 +52,8 @@ def Creacion_Tablas(Base, cursor):
     cursor.execute('''
                     CREATE TABLE Mensual(
                             MES_ID          integer NOT NULL
-                            ,MES_INICIO     date    NOT NULL
-                            ,MES_FIN        date    NOT NULL
+                            ,MES_INICIO     integer NOT NULL
+                            ,MES_FIN        integer
                             ,MES_INGRESO    numeric default 0 
                             ,MES_EGRESO     numeric default 0
                             ,MES_SALDO      numeric default 0
@@ -70,8 +70,8 @@ def Creacion_Tablas(Base, cursor):
     cursor.execute('''
                     CREATE TABLE Anual(
                             ANIO_ID         integer NOT NULL
-                            ,ANIO_INICIO    date    NOT NULL
-                            ,ANIO_FIN       date    NOT NULL
+                            ,ANIO_INICIO    integer NOT NULL
+                            ,ANIO_FIN       integer
                             ,ANIO_INGRESO   numeric default 0
                             ,ANIO_EGRESO    numeric default 0
                             ,ANIO_SALDO     numeric default 0 
@@ -80,8 +80,8 @@ def Creacion_Tablas(Base, cursor):
                             ,MEDIANA        numeric default 0
                             ,MODA           numeric default 0
                             ,CONSTRAINT A_ID_PK PRIMARY KEY (ANIO_ID AUTOINCREMENT)
-                            ,CONSTRAINT ANUAL_MES_INI_FK FOREIGN KEY (ANIO_INICIO)   REFERENCES Mensual (MES_INICIO)
-                            ,CONSTRAINT ANUAL_MES_FIN_FK FOREIGN KEY (ANIO_FIN)      REFERENCES Mensual (MES_FIN)
+                            ,CONSTRAINT ANUAL_MES_INI_FK FOREIGN KEY (ANIO_INICIO)   REFERENCES Diario (DIA_ID)
+                            ,CONSTRAINT ANUAL_MES_FIN_FK FOREIGN KEY (ANIO_FIN)      REFERENCES Diario (DIA_ID)
                         );
     ''') 
 
@@ -182,43 +182,32 @@ def Creacion_Tablas(Base, cursor):
 # Ahora creamos los triggers para modificaciones en Info transacciones, actualizamos de manera recursiva los siguientes días, si existen.
 # LOS TRIGGER NO SOPORTAN LOS IF EN SQLITE
 
-    cursor.execture('''
+    cursor.execute('''
+
                     CREATE TRIGGER IF NOT EXISTS Actualizador_Monto
                     AFTER UPDATE OF MONTO ON Info_Transacciones
                     BEGIN
-                        -- Utilizamos WITH para encontrar las filas relacionadas en Diario
-                        WITH dia_id_relacionados AS (
-                            -- Seleccionamos los DIA_ID relacionados desde Transacciones que corresponden a la fila actualizada en Info_Transacciones
-                            SELECT Info_Transacciones.DIA_ID
-                            FROM Info_Transacciones
-                            WHERE Info_Transacciones.INFO_ID = NEW.INFO_ID
-                        ),
-                        -- Calcular las diferencias de ingreso y egreso
-                        diferencias AS (
-                            SELECT
-                                CASE 
-                                    WHEN OLD.MONTO > 0 AND NEW.MONTO > 0 THEN NEW.MONTO - OLD.MONTO
-                                    WHEN OLD.MONTO > 0 AND NEW.MONTO < 0 THEN -OLD.MONTO
-                                    WHEN OLD.MONTO < 0 AND NEW.MONTO > 0 THEN NEW.MONTO
-                                    ELSE 0
-                                END AS diferencia_ingreso,
-                                CASE 
-                                    WHEN OLD.MONTO < 0 AND NEW.MONTO < 0 THEN NEW.MONTO - OLD.MONTO
-                                    WHEN OLD.MONTO < 0 AND NEW.MONTO > 0 THEN -OLD.MONTO
-                                    WHEN OLD.MONTO > 0 AND NEW.MONTO < 0 THEN NEW.MONTO
-                                    ELSE 0
-                                END AS diferencia_egreso
-                            FROM Info_Transacciones
-                            WHERE Info_Transacciones.INFO_ID = NEW.INFO_ID
-                        )
+                        -- Actualizar los valores en Diario
                         UPDATE Diario
                         SET 
-                            DIA_INGRESO = DIA_INGRESO + (SELECT diferencia_ingreso FROM diferencias),
-                            DIA_EGRESO = DIA_EGRESO + (SELECT diferencia_egreso FROM diferencias)
-                        WHERE DIA_ID IN (SELECT DIA_ID FROM dia_id_relacionados);
+                            DIA_INGRESO = DIA_INGRESO +
+                                        CASE 
+                                            WHEN OLD.MONTO > 0 AND NEW.MONTO > 0 THEN NEW.MONTO - OLD.MONTO
+                                            WHEN OLD.MONTO > 0 AND NEW.MONTO < 0 THEN -OLD.MONTO
+                                            WHEN OLD.MONTO < 0 AND NEW.MONTO > 0 THEN NEW.MONTO
+                                            ELSE 0
+                                        END,
+                            DIA_EGRESO = DIA_EGRESO +
+                                        CASE 
+                                            WHEN OLD.MONTO < 0 AND NEW.MONTO < 0 THEN NEW.MONTO - OLD.MONTO
+                                            WHEN OLD.MONTO < 0 AND NEW.MONTO > 0 THEN -OLD.MONTO
+                                            WHEN OLD.MONTO > 0 AND NEW.MONTO < 0 THEN NEW.MONTO
+                                            ELSE 0
+                                        END
+                        WHERE DIA_ID = (SELECT DIA_ID FROM Transacciones WHERE INFO_ID = NEW.INFO_ID);
                     END;
-
                     ''')
+
 
 
 

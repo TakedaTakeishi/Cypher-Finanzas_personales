@@ -122,11 +122,9 @@ def fecha_compara(Fecha_principal, Fecha_secundaria):
         F_principal = datetime.strptime(Fecha_principal, "%Y-%m-%d")
     if (type(Fecha_secundaria) is not datetime):
         F_secundaria = datetime.strptime(Fecha_secundaria, "%Y-%m-%d")
-    if F_principal > F_secundaria:
-        return 1
-    elif F_principal < F_secundaria:
-        return -1
-    elif F_principal == F_secundaria:
+    if F_principal != F_secundaria:
+        return (F_principal - F_secundaria).days
+    else:
         return 0
         
 def fecha_Inicial():
@@ -146,7 +144,7 @@ def fecha_Final(Fecha_operacion):
         print("Ingrese una fecha de finalizacion:")
         fecha = fecha_ingresar()
         var = fecha_compara(fecha,Fecha_operacion)
-        if var != 1:
+        if var < 0:
             print(">>>Debe ser una fecha futura al día de la operación")
         else:
             return fecha
@@ -158,13 +156,26 @@ def fecha_Seleccionar(cursor):
     # En esta parte se tiene que obtener los años en los que hay registros
     Anios = ctr.obtener_Anios(cursor)
     if len(Anios) > 1:
-        ano = submenu_obligatorio('Elegir año', 'Elección', Anios)
-        anio = Anios(ano-1)
-    
+        eleccion = submenu_obligatorio('Elegir año', 'Elección', Anios)
+        anio = Anios(eleccion-1)
+    else:
+        anio = Anios
     #  Despues se tienen que obtener los meses 
-    Meses = ctr.obtener_Meses
-    Dias = ctr.obtener_Dias
-
+    Meses = ctr.obtener_Meses(cursor, anio)
+    if len(Meses) > 1:
+        eleccion = submenu_obligatorio('Elegir mes', 'Elección', Meses)
+        mes = Meses(eleccion-1)
+    else:
+        mes = Meses
+    Dias = ctr.obtener_Dias(cursor, mes, anio)
+    if len(Dias) > 1:
+        eleccion = submenu_obligatorio('Elegir dia','Elección', Dias)
+        dia = Dias(eleccion-1)
+    else:
+        dia = Dias
+    Fecha = f"{anio:04d}-{mes:02d}-{dia:02d}"
+    Dia_ID = ctr.fecha_Dia_ID(cursor, Fecha)
+    return Fecha, Dia_ID
         
 #Que va a pedir y como
 
@@ -181,9 +192,11 @@ def usuario_Crear():
     return Nombre
 
 def usuario_Asigna(ruta, Nombre):
-    with open(ruta, 'a') as file:
-        Usuario = Nombre + '\n'
-        file.write(Usuario)
+
+    with open(ruta, 'a', encoding="utf-8") as file:
+        usuario = Nombre + '\n'
+        file.write(usuario)
+
 
 #def fecha_
 
@@ -211,7 +224,7 @@ def usuario_Nuevo():
     return Base, cursor, Nombre
 
 def usuario_Nombre(ruta, fila):
-    with open(ruta, 'r') as file:
+    with open(ruta, 'r', encoding="utf-8") as file:
         Nombre = file.readlines()[fila-1]
     return Nombre.strip()
     
@@ -503,7 +516,8 @@ def operacion_Elegir_Modificar(Modificaciones, Operaciones, Fecha):
                     cambiar = False
                     break
             # Si no se encontró una coincidencia, se agrega la nueva tupla
-            if cambiar: Modificaciones.append(tuple(lista_nueva + lista[-3:]))
+            if cambiar: 
+                Modificaciones.append(tuple(lista_nueva + lista[-3:]))
 
 def operacion(Base, cursor, Dia_ID, Fecha):
     Operaciones = []
@@ -538,7 +552,7 @@ def operacion(Base, cursor, Dia_ID, Fecha):
                 if tupla !=0:
                     Tupla = Operaciones[tupla-1]
                     lista = list(Tupla)
-                    Operaciones[tupla-1] = operacion_Modificar(lista, Fecha)
+                    Operaciones[tupla-1] = tuple(operacion_Modificar(lista, Fecha))
                         
                     
             case 5:
@@ -583,29 +597,7 @@ def modificar(Base, cursor, Dia_ID, Fecha):
                 if tupla != 0:
                     Tupla = Modificaciones[tupla-1]
                     lista = list(Tupla)
-                    opcion = None
-                    continuar = True
-                    opciones = ('Cocepto', 'Monto', 'Rubro', 'Intervalo', 'Fecha final' ,'Intereses')
-                    while continuar:
-                        # 'Concepto', 'Monto', 'Rubro', 'Intervalo', 'Fecha final' ,'Intereses'
-                        printOperacion(lista[0], lista[1], lista[2], lista[3], lista[4], lista[5])
-                        if(Tupla[3] is not None):
-                            opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones)
-                        else:
-                            opcion = submenu('Cambiar algun Dato','¿Que dato quieres cambiar?',opciones[:-3])
-                        match(opcion):
-                            case 0: break
-                            case 1: lista[0] = input_validado("Ingresa el concepto: ", 4)
-                            case 2: lista[1] = input_validado("Ingresa la monto: ", 2)
-                            case 3: lista[2] = input_validado("Ingrese el rubro: ",5)
-                            case 4: lista[3] = dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
-                            case 5:
-                                lista[4] = fecha_Final(Fecha)
-                            
-                            case 6: 
-                                porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
-                                lista[5] = porcentaje / 100
-                        Modificaciones[tupla-1] = tuple(lista)
+                    Modificaciones[tupla-1] = tuple(operacion_Modificar(lista, Fecha))
                             
             case 5:
                 #Si esta vacío no actualiza.
@@ -635,7 +627,10 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
     ultimo_dia, Dia_ID = ctr.fecha_Max(cursor)
     ultimo_dia_txt = DL(ultimo_dia)
     print(f"El último día es: {ultimo_dia_txt}")
-    diferencia = ctr.diferencia(cursor, datetime.now(), ultimo_dia,'d')
+    dia_Hoy_objeto = datetime.now()
+    dia_Hoy_str = dia_Hoy_objeto.strftime('%Y-%m-%d')
+    print(f'Haciendo la diferencia entre: {dia_Hoy_str} y {ultimo_dia}.')
+    diferencia = fecha_compara(dia_Hoy_str,ultimo_dia)
     print(f'La diferencia es: {diferencia}')
     ctr.generarDias(Base, cursor, ultimo_dia, diferencia)
     if diferencia <= 1:  
@@ -674,7 +669,7 @@ def datos_Modificar(Base, cursor):
                 Fecha, Dia_ID = fecha_Seleccionar(Base,cursor) # En construcción
                 if Num_Operaciones == 0:
                     Dia_ID_Inicio = Dia_ID
-                elif fecha_compara(Dia_ID, Dia_ID_Inicio) == -1:
+                elif Dia_ID < Dia_ID_Inicio:
                     Dia_ID_Inicio = Dia_ID
 
     # Antes de actualizar los saldos y para que no se actualicen de manera innecesaria.
@@ -723,7 +718,7 @@ def menu():
     locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8') #Generalizar dependiendo del sistema en el que corra.
     Base, cursor, Usuario = usuario_Iniciar()
     while True:
-        print("|----------  MENU  ----------|\n")
+        print("<----------  MENU  ---------->\n")
         print("1. Ingresar Datos")
         print("2. Mostrar Datos")
         print("3. Modificar Datos")
@@ -807,10 +802,10 @@ año 4
 #                                          === A realizar ===
 #=============================================================================================================
 
-
+# Meter datos de prueba para probar el trigger Actualizador_Monto
+# Hacer para actualizar operaciones con intervalo Operaciones_Intervalo
 # Hacer la función operación_Modificar() que quita los registros de modo que ya no activos, se usan los triggers para actualizar los saldos automáticamente si es que se actualiza la columna estado.
 # Hacer un submenú para los rubros y dejarte elegir.
-# Revisar si se crean el archivo Usuario.txt automáticamente.
 
 # No prioritarios ----------------------------------------------------------------------------------------------------------------------------
 
@@ -818,3 +813,6 @@ año 4
 # Hacer la validación: monto no debe ser cero
 # Buscar una manera de que las fechas en español salgan bien.
 # Hacer que el porcentaje tenga un % para el ingreso del dato sin que el usuario lo ponga. input('Porcentaje (%)': )    Porcentaje: %
+
+# ERRORES ------------------------------------------------------------------------------------------------------------------------------------
+

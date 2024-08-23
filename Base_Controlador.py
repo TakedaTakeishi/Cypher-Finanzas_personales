@@ -18,20 +18,29 @@ def insertFecha(Base, cursor, Fecha):
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""
     cursor.execute(Diario, (None,Fecha,0,0,0,0,0,0,0))
 
+    Base.commit()
+
     Semanal = """INSERT INTO Semanal
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-    cursor.execute(Semanal, (None,Fecha,0,0,0,0,0,0,0))
+    cursor.execute(Semanal, (None,1,None,0,0,0,0,0,0,0))
 
     Mensual = """INSERT INTO Mensual
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-    cursor.execute(Mensual, (None,Fecha,0,0,0,0,0,0,0))
-
-    Anual = """INSERT INTO Anual
-    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
-    cursor.execute(Anual, (None,Fecha,0,0,0,0,0,0,0))
+    cursor.execute(Mensual, (None,1,None,0,0,0,0,0,0,0))
 
     Base.commit()
-    
+    Anual = """INSERT INTO Anual
+    VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"""
+    cursor.execute(Anual, (None,1,None,0,0,0,0,0,0,0))
+
+    Base.commit()
+'''
+INSERT INTO Diario VALUES (Null,'2023-07-23',0,0,0,0,0,0,0);
+INSERT INTO Semanal VALUES (Null,'2023-07-23',Null,0,0,0,0,0,0,0);
+INSERT INTO Mensual VALUES (Null,'2023-07-23',Null,0,0,0,0,0,0,0);
+INSERT INTO Anual VALUES (Null,'2023-07-23',Null,0,0,0,0,0,0,0);
+
+'''    
 
 
 def insertRubro(cursor, rubro):
@@ -202,7 +211,7 @@ def updateOperacion (Base, cursor, Tupla):
                 ,RUBRO_ID = {RUBRO_ID}
 
             WHERE INFO_ID = {INFO_ID}
-            ''')    
+            ''') # Se puede mejorar la eficiencia, haciendo que si el monto ha permanecido igual entonces no acualice monto para no encender algunos triggers.   
 
     # Sólo en caso de que se se tenga intervalo
     if INTERVALO:
@@ -317,7 +326,10 @@ def obtener_Transacciones(Base, cursor, Dia_ID):
     return cursor.fetchall()
 
 def obtener_Anios(cursor):
-    cursor.execute('''SELECT ANIO_INICIO FROM Anual''')
+    cursor.execute('''SELECT D.FECHA
+                      FROM Diario D
+                      JOIN Anual A ON D.DIA_ID = A.ANIO_INICIO;
+                      ''')
     fetchedData = cursor.fetchall()
     anios = []
     # fectchedData = [(2023-02-01,), (2024-01-01,), (2025-01-01,)]
@@ -326,25 +338,35 @@ def obtener_Anios(cursor):
     return anios
 
 def obtener_Meses(cursor, anio):
-    cursor.execute(f'''SELECT MES_INICIO 
-                        FROM Mensual
-                        WHERE strftime('%Y', MES_INICIO) = '{anio}';
+    cursor.execute(f'''SELECT D.FECHA 
+                       FROM Mensual M
+                       JOIN Diario D ON M.MES_INICIO = D.DIA_ID
+                       WHERE strftime('%Y', D.FECHA) = '{anio}';
                         ''')
     fetchedData = cursor.fetchall()
     meses = []
     # fectchedData = [(2023-02-01,), (2024-01-01,), (2025-01-01,)]
     for tupla in fetchedData:
-        meses.append(tupla[0][6:8])
+    # Extrae el mes de la fecha
+        mes = tupla[0][5:7]  # '02', '01', '11'
+    # Elimina el cero inicial si existe
+        meses.append(mes.lstrip('0'))
     return meses
 
-def obtener_Dias(cursor, mes):
-    cursor.execute('''SELECT MES_INICIO FROM Mensual''')
+
+def obtener_Dias(cursor, mes, anio):
+    cursor.execute(f'''SELECT FECHA
+                       FROM Diario
+                       WHERE strftime('%Y', FECHA) = '{anio}'
+                       AND  strftime('%m', FECHA) = '{mes}';
+                   ''')
     fetchedData = cursor.fetchall()
-    meses = []
+    dias = []
     # fectchedData = [(2023-02-01,), (2024-01-01,), (2025-01-01,)]
     for tupla in fetchedData:
-        meses.append(tupla[0][6:8])
-    return meses
+        dia = tupla[0][-2:]
+        dias.append(dia.lstrip('0'))
+    return dias
 #=============================================================================================================
 #                                          === CREACION DE USUARIO Y BASES ===
 #=============================================================================================================
@@ -409,17 +431,18 @@ def base_Fecha():
             else:
                 print(f"Fecha aceptada, la base inicia el: {s}")
     return s
-'''
 
-'''
+"""
 def diferencia(cursor, str_fin, str_inicio, tipo):
-
+  
     query = f'''
     SELECT (strftime('%{tipo}', '{str_fin}') - strftime('%{tipo}', '{str_inicio}'));
     '''
     cursor.execute(query)
-    fetchedData = cursor.fetchall()  
+    fetchedData = cursor.fetchall()
     return fetchedData[0][0]
+"""
+
 
 def usuarios_Dir(Base_Nombre):
     current_directory = Path.cwd()
@@ -433,7 +456,7 @@ def usuarios_Dir(Base_Nombre):
     #print(f"Ruta de la base: {archivo_ruta}")
     return archivo_ruta
 
-def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y 2 para conectarse directamente.
+def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y 2 (o cualquiera realmente) para conectarse directamente.
     
     Base_Nombre = Nombre.strip() + ".db"                                               
     #Si no existe una base de datos, entonces se debe crea.
