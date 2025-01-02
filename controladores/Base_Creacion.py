@@ -171,6 +171,7 @@ def Creacion_Tablas(Base, cursor):
                     CREATE TRIGGER IF NOT EXISTS Actualizar_Saldo_Diario
                     AFTER UPDATE OF DIA_SALDO ON Diario
                         BEGIN
+                        --No hemos avanzado
                            --Esta parte suma el saldo del día anterior con el nuevo saldo actualizado
                             UPDATE Diario
                             SET SALDO = DIA_SALDO + COALESCE((SELECT SALDO FROM Diario
@@ -207,6 +208,7 @@ def Creacion_Tablas(Base, cursor):
                         WHERE DIA_ID = (SELECT DIA_ID FROM Transacciones WHERE INFO_ID = NEW.INFO_ID);
                     END;
                     ''')
+
 
 
 

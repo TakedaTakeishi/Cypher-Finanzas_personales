@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 #=============================================================================================================
 #                                          === INSERCIONES ===
 #=============================================================================================================
-
+#No hemos avanzado con el proyecto
 def insertFecha(Base, cursor, Fecha):
     Diario = """INSERT INTO Diario
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""

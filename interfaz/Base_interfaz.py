@@ -425,7 +425,7 @@ def print_Operaciones(Operaciones):
 def Operacion_input(Fecha, Op):
     #Verificar datos
     concepto =  input_validado("Ingresa el concepto: ", 5)
-    monto = input_validado("Ingresa la monto: ", 2)
+    monto = input_validado("Ingresa el monto: ", 2)
     rubro = None
     intervalo =  None
     fecha_final = None
@@ -470,7 +470,7 @@ def operacion_Modificar(lista, Fecha):
             case 6: 
                 porcentaje = input_validado("¿Cuál es el porcentaje?: ", 2)
                 lista[5] = porcentaje / 100
-        print('Se cambió: ' + lista)
+        printOperacion(lista[0], lista[1], lista[2], lista[3], lista[4], lista[5]) # Cambio
         return lista
 
 
@@ -523,13 +523,13 @@ def operacion(Base, cursor, Dia_ID, Fecha):
     Operaciones = []
     operacion = 0
     while True:
-        opciones = ('Crear operaciones', 'Mostrar operaciones', 'Borrar operación', 'Modificar operación', 'Guardar operación')
+        opciones = ('Registrar movimiento', 'Mostrar movimiento', 'Borrar movimiento', 'Modificar movimiento', 'Subir movimientos a la base de datos')
         opcion = submenu(f"Menu Ingreso Fecha: {Fecha}", 'Elige que deseas hacer', opciones)
         match opcion:
             case 0: return operacion
             case 1:
                 while True:
-                    choice = submenu('Operaciones', '¿Qué tipo de operación quieres?', ('Simple', 'Recurrente') )
+                    choice = submenu('Movimiento', '¿Qué tipo de operación quieres?', ('Simple', 'Recurrente') )
                     if choice == 0:
                         break
                     Tupla = tuple(Operacion_input(Fecha, choice))
@@ -719,10 +719,10 @@ def menu():
     Base, cursor, Usuario = usuario_Iniciar()
     while True:
         print("<----------  MENU  ---------->\n")
-        print("1. Ingresar Datos")
-        print("2. Mostrar Datos")
-        print("3. Modificar Datos")
-        print("4. Quitar/restaurar Datos")
+        print("1. Registrar movimiento")
+        print("2. Mostrar movimiento")
+        print("3. Modificar movimiento")
+        print("4. Quitar/restaurar histórico")
         print("5. Cambiar de usuario")
         print("6. Crear nuevo Usuario")
         print("7. Borrar un usuario")
@@ -765,17 +765,17 @@ menu()
 #                                          === A realizar ===
 #=============================================================================================================
 
-# Meter datos de prueba para probar el trigger Actualizador_Monto
-# Hacer para actualizar operaciones con intervalo Operaciones_Intervalo
-# Hacer la función operación_Modificar() que quita los registros de modo que ya no activos, se usan los triggers para actualizar los saldos automáticamente si es que se actualiza la columna estado.
-# Hacer un submenú para los rubros y dejarte elegir.
+#TODO Meter datos de prueba para probar el trigger Actualizador_Monto
+#TODO  Hacer para actualizar operaciones con intervalo Operaciones_Intervalo
+#TODO  Hacer la función operación_Modificar() que quita los registros de modo que ya no activos, se usan los triggers para actualizar los saldos automáticamente si es que se actualiza la columna estado.
+#TODO  Hacer un submenú para los rubros y dejarte elegir.
 
 # No prioritarios ----------------------------------------------------------------------------------------------------------------------------
 
-# Cambiar la impresión de tablas para que se muestren sólo las operaciones activas.
-# Hacer la validación: monto no debe ser cero
-# Buscar una manera de que las fechas en español salgan bien.
-# Hacer que el porcentaje tenga un % para el ingreso del dato sin que el usuario lo ponga. input('Porcentaje (%)': )    Porcentaje: %
+#TODO  Cambiar la impresión de tablas para que se muestren sólo las operaciones activas.
+#TODO  Hacer la validación: monto no debe ser cero
+#TODO  Buscar una manera de que las fechas en español salgan bien.
+#TODO  Hacer que el porcentaje tenga un % para el ingreso del dato sin que el usuario lo ponga. input('Porcentaje (%)': )    Porcentaje: %
 
 # ERRORES ------------------------------------------------------------------------------------------------------------------------------------
 
