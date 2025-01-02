@@ -109,13 +109,14 @@ def Creacion_Tablas(Base, cursor):
                     CREATE TABLE Info_transacciones(
                             INFO_ID     integer  NOT NULL
                             ,CONCEPTO   text     NOT NULL
-                            ,MONTO   numeric  NOT NULL
+                            ,MONTO      numeric  NOT NULL
                             ,RUBRO_ID   integer
+                            ,COMPUESTO  numeric  
                             ,CONSTRAINT I_ID_IT_PK PRIMARY KEY(INFO_ID AUTOINCREMENT)
                             ,CONSTRAINT INFO_RUBRO_R_ID_FK FOREIGN KEY (RUBRO_ID) REFERENCES Rubro (RUBRO_ID)
                         );
     ''')
-                      
+    # Se utiliza actualizar para guardar la fecha donde actualizar la operación recurrente        
     cursor.execute('''
                     CREATE TABLE Transacciones(
                             TRANSACCION_ID      integer  NOT NULL
@@ -123,6 +124,7 @@ def Creacion_Tablas(Base, cursor):
                             ,FECHA              datetime NOT NULL
                             ,INFO_ID            integer  NOT NULL
                             ,DIA_ID             integer  NOT NULL
+                            ,ACTUALIZAR         date     
                             ,CONSTRAINT T_D_T_PK PRIMARY KEY(TRANSACCION_ID AUTOINCREMENT)
                             ,CONSTRAINT TRANSAC_INFO_ID_FK FOREIGN KEY (INFO_ID)   REFERENCES Info_transacciones (INFO_ID)
                             ,CONSTRAINT TRANSAC_DIA_ID_FK  FOREIGN KEY (DIA_ID)    REFERENCES Diario (DIA_ID)

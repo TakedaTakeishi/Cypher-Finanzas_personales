@@ -131,15 +131,6 @@ def fecha_ingresar():
     return f"{anio:04d}-{mes:02d}-{dia:02d}"
         
 
-def fecha_compara(Fecha_principal, Fecha_secundaria):
-    if (type(Fecha_principal) is not datetime):
-        F_principal = datetime.strptime(Fecha_principal, "%Y-%m-%d")
-    if (type(Fecha_secundaria) is not datetime):
-        F_secundaria = datetime.strptime(Fecha_secundaria, "%Y-%m-%d")
-    if F_principal != F_secundaria:
-        return (F_principal - F_secundaria).days
-    else:
-        return 0
         
 def fecha_Inicial():
     fecha_hora_actual = datetime.now()
@@ -157,7 +148,7 @@ def fecha_Final(Fecha_operacion):
     while True:
         print("Ingrese una fecha de finalizacion:")
         fecha = fecha_ingresar()
-        var = fecha_compara(fecha,Fecha_operacion)
+        var = ctr.fecha_compara(fecha,Fecha_operacion)
         if var < 0:
             print(">>>Debe ser una fecha futura al día de la operación")
         else:
@@ -363,12 +354,12 @@ def dato_Intervalo_Tipo(fecha):
             else:       
                 return 'Anual' #Verificar lo del día bisiesto
         case 2:                        
-            #Verificar si los días no entran en todos los meses.
-            if(int(fecha[5:7]) > 29):
+            dia = int(fecha[-2:])
+            if dia > 28:
                 while True:       
-                    print(f'No todos los días tienen {fecha[-2:]} ¿Quieres que se repita al final del mes o cada 28?')
+                    print(f'No todos los meses tienen {dia} días. ¿Quieres que se repita al final del mes o cada 28?')
                     mes = int(input('''1. Fin de mes
-                                    \n 2. Cada 28'''))
+                                    \n2. Cada 28'''))
                     if(1 <= mes <= 2):
                         break
                 if mes == 1:
@@ -376,7 +367,7 @@ def dato_Intervalo_Tipo(fecha):
                 else:
                     return 'Cada 28'
             else:
-                print(f'La operación se repetirá cada: {fecha[5:7]} de cada mes')
+                print(f'La operación se repetirá el día {dia} de cada mes')
                 return 'Mensual'
         case 3:
             print(f'La operación se repetirá este día de cada semana')
@@ -396,10 +387,8 @@ def dato_Intervalo_Tipo(fecha):
         case _: 
             return None
 
-def dato_Intervalo_Numero(Tipo):
-    if (type(Tipo) is int):
-        return Tipo
-    if (type(Tipo) is None):
+def dato_Intervalo_Codificacion(Tipo):
+    if (type(Tipo) is int or type(Tipo) is None):
         return Tipo
     elif(Tipo == 'Semanal'):
         return 7
@@ -445,7 +434,7 @@ def Operacion_input(Fecha, Op):
     fecha_final = None
     intereses = None
     if Op == 2:
-        intervalo =  dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
+        intervalo =  dato_Intervalo_Codificacion(dato_Intervalo_Tipo(Fecha))
         if (intervalo is None):
             choice = 1
             rubro = input_rubro()
@@ -477,7 +466,7 @@ def operacion_Modificar(lista, Fecha):
             case 1: lista[0] = input_validado("Ingresa el concepto: ", 4)
             case 2: lista[1] = input_validado("Ingresa la monto: ", 2)
             case 3: lista[2] = input_validado("Ingrese el rubro: ",5)
-            case 4: lista[3] = dato_Intervalo_Numero(dato_Intervalo_Tipo(Fecha))
+            case 4: lista[3] = dato_Intervalo_Codificacion(dato_Intervalo_Tipo(Fecha))
             case 5:
                 lista[4] = fecha_Final(Fecha)
             
@@ -634,7 +623,10 @@ def DL(fecha):
     return fecha_DL
         
 # ------------------------------------- Datos ingresar -----------------------------------------------------
-
+def actualizar_diario(Base, cursor, fecha_objeto):
+    ctr.insertar_recurrencias(Base, cursor, fecha_objeto)
+    fecha_objeto_anterior = fecha_objeto - timedelta(days=1)
+    ctr.actualizar_estadisticas(Base, cursor, fecha_objeto_anterior)
 
 
 def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo, 0 sin intervalo
@@ -644,14 +636,16 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
     dia_Hoy_objeto = datetime.now()
     dia_Hoy_str = dia_Hoy_objeto.strftime('%Y-%m-%d')
     print(f'Haciendo la diferencia entre: {dia_Hoy_str} y {ultimo_dia}.')
-    diferencia = fecha_compara(dia_Hoy_str,ultimo_dia)
+    diferencia = ctr.fecha_compara(dia_Hoy_str,ultimo_dia)
     print(f'La diferencia es: {diferencia}')
     ctr.generarDias(Base, cursor, ultimo_dia, diferencia)
-    if diferencia <= 1:  
+    if diferencia <= 0:
         operacion(Base,cursor, Dia_ID, ultimo_dia)
-  
+    elif diferencia == 1:  
+        operacion(Base,cursor, Dia_ID, ultimo_dia)
+        actualizar_diario(Base, cursor, dia_Hoy_objeto)
     else:
-        #Falta por terminar: Pregunta si quieres ingresar dia por día o pasar. Luego para cada dia pregunta si para ese día hay datos que ingresar.  
+        # Pregunta si quieres ingresar dia por día o pasar. Luego para cada dia pregunta si para ese día hay datos que ingresar.  
         if eleccion(f'.:Han pasado {diferencia} días >> ¿Quieres ingresar datos para esos días?'):
             fecha_objeto = datetime.strptime(ultimo_dia, '%Y-%m-%d')
             
@@ -659,9 +653,15 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
                 fecha_objeto += timedelta(days=1)
                 fecha_actual_str = fecha_objeto.strftime('%Y-%m-%d')
                 fecha_actual_txt = DL(fecha_objeto)
+                actualizar_diario(Base, cursor, fecha_objeto)
                 if eleccion(f'Para la fecha {fecha_actual_txt} ¿Quieres ingresar datos?'):
                     Dia_id_N = ctr.fecha_Dia_ID(cursor,fecha_actual_str)
                     operacion(Base,cursor, Dia_id_N, fecha_actual_str)
+
+        else:
+            for _ in range(diferencia):
+                fecha_objeto += timedelta(days=1)
+                actualizar_diario(Base, cursor, fecha_objeto)
     
 def datos_Modificar(Base, cursor):
     #Para conocer hasta el día en que se pueden hacer cambios.
@@ -737,6 +737,7 @@ def menu():
         print("2. Mostrar movimiento")
         print("3. Modificar movimiento")
         print("4. Quitar/restaurar histórico")
+        # TODO Poner las operaciones de usuario en un apartado
         print("5. Cambiar de usuario")
         print("6. Crear nuevo Usuario")
         print("7. Borrar un usuario")
@@ -780,7 +781,7 @@ menu()
 #=============================================================================================================
 
 #TODO Meter datos de prueba para probar el trigger Actualizador_Monto
-#TODO  Hacer para actualizar operaciones con intervalo Operaciones_Intervalo
+#TODO  Hacer la función para actualizar operaciones con intervalo Operaciones_Intervalo
 #TODO  Hacer la función operación_Modificar() que quita los registros de modo que ya no activos, se usan los triggers para actualizar los saldos automáticamente si es que se actualiza la columna estado.
 #TODO  Hacer un submenú para los rubros y dejarte elegir.
 
