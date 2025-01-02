@@ -42,17 +42,17 @@ def fecha_Max(cursor):
     return Fecha, Dia_ID
 
 def ID_de_fecha(cursor, Fecha):
-    cursor.execute(f'''SELECT DIA_ID FROM Diario
-                      WHERE FECHA = "{Fecha}"''')
+    cursor.execute(f'''SELECT DIA_ID FROM Diario WHERE FECHA = ?''', (Fecha,))
     Dia_ID = cursor.fetchall()[0][0]
     print(f'El día ID de {Fecha} es {Dia_ID}.')
     return Dia_ID
 
 def fecha_de_ID(cursor, Dia_ID):
-    cursor.execute(f'''SELECT FECHA FROM Diario
-                      WHERE DIA_ID = {Dia_ID}''')
-    Fecha = cursor.fetchall()[0][0]
-    return Fecha
+    cursor.execute('SELECT FECHA FROM Diario WHERE DIA_ID = ?', (Dia_ID,))
+    resultados = cursor.fetchall()
+    if not resultados:
+        raise ValueError(f"No se encontró ninguna fecha para el ID {Dia_ID}")
+    return resultados[0][0]
 
 def datos_Semana(cursor):
     pass
@@ -180,10 +180,10 @@ def insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID,
          
     
 
-def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = None):
+def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = None, Estado = True):
     Flujo = '''INSERT INTO Flujo
     VALUES(?, ?, ?, ?, ?);'''
-    cursor.execute(Flujo, (None, Intervalo, Fecha_final, Intereses, None))
+    cursor.execute(Flujo, (None, Intervalo, Fecha_final, Intereses, Estado))
     Base.commit()
 
     cursor.execute('''SELECT MAX(OPERACION_ID)
@@ -305,6 +305,7 @@ def insertOperation(Base, cursor, Dia_ID, Concepto, Monto, Rubro = None, Interva
     if Intervalo:
         # Entonces Actualizar es la fecha + el intervalo
         # Aquí necesitamos una función que haga que el intervalo sea un número que podamos sumar a la fecha
+        fecha = datetime.strptime(fecha, '%Y-%m-%d')
         Actualizar = fecha + timedelta(days=dato_Intervalo_decodificacion(Intervalo, fecha))
     else:
         Actualizar = None
@@ -323,18 +324,37 @@ def generarDias(Base, cursor, fecha_inicio, num_dias):
 # Las que cumplen con la fecha de actualización
 def se_actualizan(cursor, intervalos, fecha_str):
     intervalos_lista = [i[0] for i in intervalos]
-    # Usamos map para convertir los elementos de intervalos_lista de número a string
-    # Luego a eso le aplicamos join para unir los elementos con comas
-    consulta =  f'''SELECT TRANSACCION_ID FROM TRANSACCIONES
-                    WHERE OPERACION_ID IN ({','.join(map(str, intervalos_lista))})
-                    AND ACTUALIZAR = "{fecha_str}"'''
-    cursor.execute(consulta)
-    return cursor.fetchall()
+    print(f"\nBuscando operaciones que se actualizan en {fecha_str}")
+    print(f"Operaciones con intervalo: {intervalos_lista}")
+    
+    # Modificamos la consulta para usar strftime y comparar solo las fechas
+    consulta = '''SELECT T.TRANSACCION_ID, T.ACTUALIZAR, F.INTERVALO, I.CONCEPTO 
+                 FROM TRANSACCIONES T
+                 JOIN FLUJO F ON T.OPERACION_ID = F.OPERACION_ID
+                 JOIN INFO_TRANSACCIONES I ON T.INFO_ID = I.INFO_ID
+                 WHERE F.OPERACION_ID IN ({})
+                 AND date(T.ACTUALIZAR) = ?
+                 AND F.ESTADO = TRUE'''.format(','.join(['?'] * len(intervalos_lista)))
+    
+    try:
+        cursor.execute(consulta, intervalos_lista + [fecha_str])
+        resultados = cursor.fetchall()
+        print("\nTransacciones encontradas:")
+        for r in resultados:
+            print(f"ID: {r[0]}, Fecha actualización: {r[1]}, Intervalo: {r[2]}, Concepto: {r[3]}")
+        return resultados
+    except Exception as e:
+        print(f"Error en la consulta: {e}")
+        print(f"Consulta ejecutada: {consulta}")
+        print(f"Parámetros: {intervalos_lista + [fecha_str]}")
+        return []
 
 def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
     id_fecha = ID_de_fecha(cursor, fecha_str)
+    print(f"\nProcesando {len(cumplen)} transacciones recurrentes para fecha {fecha_str}")
+    
     for tupla in cumplen:
-        consulta = f'''SELECT F.INTERVALO, F.INTERESES, F.FECHA_FINAL, F.OPREACION_ID, T.INFO_ID, I.MONTO, I.COMPUESTO, I.CONCEPTO, D.FECHA, R.RUBRO
+        consulta = f'''SELECT F.INTERVALO, F.INTERESES, F.FECHA_FINAL, F.OPERACION_ID, T.INFO_ID, I.MONTO, I.COMPUESTO, I.CONCEPTO, D.FECHA, R.TIPO
                         FROM FLUJO F
                         JOIN TRANSACCIONES T ON F.OPERACION_ID = T.OPERACION_ID
                         JOIN INFO_TRANSACCIONES I ON T.INFO_ID = I.INFO_ID
@@ -342,11 +362,13 @@ def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
                         LEFT JOIN RUBRO R ON I.RUBRO_ID = R.RUBRO_ID
                         WHERE T.TRANSACCION_ID = {tupla[0]}'''
         cursor.execute(consulta)
-        intervalo, intereses, fecha_final, operacion_id, info_id, monto, compuesto, concepto, fecha, rubro = cursor.fetchall()[0]
-        if fecha_compara(fecha_str, fecha_final) >= 0:
-            actualiza = '''UPDATE FLUJO SET INTERVALO = NULL
-                            WHERE OPERACION_ID = {operacion_id}'''
-            cursor.execute(actualiza)
+        resultado = cursor.fetchall()[0]
+        intervalo, intereses, fecha_final, operacion_id, info_id, monto, compuesto, concepto, fecha, rubro = resultado
+        
+        # Verificar si la operación debe terminar, es mayor a 1 para que se ejecute en la fecha final
+        if fecha_final is not None and fecha_compara(fecha_str, fecha_final) >= 1:
+            # Actualizar para marcar que la operación recurrente ha terminado
+            cursor.execute('UPDATE FLUJO SET INTERVALO = NULL WHERE OPERACION_ID = ?', (operacion_id,))
         else:
             if intereses:
                 if compuesto:
@@ -355,11 +377,11 @@ def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
                 else:
                     nuevo_monto = monto * intereses
                     nuevo_compuesto = monto + nuevo_monto
-                nuevo_info_id = insertInfo_transaccciones(Base, cursor, f'Intereses: {concepto}', nuevo_monto, rubro, nuevo_compuesto)
+                nuevo_info_id = insertInfo_transaccciones(Base, cursor, concepto, nuevo_monto, rubro, nuevo_compuesto)
             else:
                 nuevo_info_id = info_id
 
-            Actualizar = fecha + timedelta(days=dato_Intervalo_decodificacion(intervalo, fecha))
+            Actualizar = datetime.strptime(fecha_str, '%Y-%m-%d') + timedelta(days=dato_Intervalo_decodificacion(intervalo, fecha_str))
             Fecha_hora = datetime.now()
             
             insertTransacciones(Base, cursor, operacion_id, Fecha_hora, nuevo_info_id, id_fecha, Actualizar) 
@@ -369,33 +391,56 @@ def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
 
 def insertar_recurrencias(Base, cursor, fecha_objeto):
     fecha_str = fecha_objeto.strftime('%Y-%m-%d')
+    print(f"\nBuscando recurrencias para fecha: {fecha_str}")
+    
     intervalos = consulta_intervalos(cursor)
+    print(f"Total de operaciones con intervalo: {len(intervalos)}")
+
+    # Ejecutar diagnóstico
+    diagnostico_recurrencias(cursor, fecha_str)
+    
     if intervalos:
         cumplen = se_actualizan(cursor, intervalos, fecha_str)
         if cumplen:
             agregar_recurrentes(Base, cursor, cumplen, fecha_str)
-# Función para actualizar el promedio, la media y la mediana de un día determinado
-def actualizar_estadisticas(Base, cursor, fecha_objeto_anterior):    
-    fecha_id = ID_de_fecha(cursor, fecha_objeto_anterior.strftime('%Y-%m-%d'))
-    # Obtenemos el saldo del día anterior
-    cursor.execute(f'SELECT SALDO FROM DIARIO WHERE DIA_ID = {fecha_id}')
-    saldo_anterior = cursor.fetchall()[0][0]
-    # Ahora hacemos el promedio con saldo anterior / id del día
-    promedio = saldo_anterior / fecha_id
-    # Se obtiene la mediana y la moda de todos los días hasta la fecha
-    # Pimero los saldos ordenados de menor a mayor
-    cursor.execute('SELECT SALDO FROM DIARIO ORDER BY SALDO WHERE DIA_ID <= ?', (fecha_id,))
-    saldos = cursor.fetchall()
-    # Ahora obtenemos la mediana
-    if len(saldos) % 2 == 0:
-        mediana = (saldos[len(saldos) // 2 - 1] + saldos[len(saldos) // 2]) / 2
+        else:
+            print("No hay operaciones para actualizar en esta fecha")
     else:
-        mediana = saldos[len(saldos) // 2]
-    # Ahora obtenemos la moda
-    # Lo hacemos usando conjunto para obtener los valores únicos y luego el valor que más se repite
-    moda = max(set(saldos), key=saldos.count)
-    # Actualizamos los valores en la tabla en el día correspondiente
-    cursor.execute('UPDATE DIARIO SET PROMEDIO = ?, MEDIANA = ?, MODA = ? WHERE DIA_ID = ?', (promedio, mediana, moda, fecha_id))
+        print("No hay operaciones recurrentes configuradas")
+
+# Función para actualizar el promedio, la media y la mediana de un día determinado
+def actualizar_estadisticas(Base, cursor, fecha_objeto):    
+    fecha_id = ID_de_fecha(cursor, fecha_objeto.strftime('%Y-%m-%d'))
+    
+    # Obtener todos los saldos hasta la fecha actual
+    cursor.execute('SELECT SALDO FROM DIARIO WHERE DIA_ID <= ? ORDER BY SALDO', (fecha_id,))
+    saldos = [row[0] for row in cursor.fetchall()]
+    
+    if not saldos:
+        return
+        
+    # Calcular estadísticas
+    promedio = sum(saldos) / len(saldos)
+    
+    # Mediana
+    if len(saldos) % 2 == 0:
+        mediana = (saldos[len(saldos)//2 - 1] + saldos[len(saldos)//2]) / 2
+    else:
+        mediana = saldos[len(saldos)//2]
+    
+    # Moda
+    from collections import Counter
+    moda = Counter(saldos).most_common(1)[0][0]
+    
+    # Actualizar estadísticas
+    cursor.execute('''
+        UPDATE DIARIO 
+        SET PROMEDIO = ?,
+            MEDIANA = ?,
+            MODA = ?
+        WHERE DIA_ID = ?
+    ''', (promedio, mediana, moda, fecha_id))
+    
     Base.commit()
 
 #=============================================================================================================
@@ -638,4 +683,41 @@ def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y
 
     #Para no tener que cerrar la conexión la devolvemos
     return Base, cursor
+
+def diagnostico_recurrencias(cursor, fecha_str):
+    """Función para diagnosticar por qué no se encuentran las recurrencias"""
+    print("\n=== Diagnóstico de Recurrencias ===")
+    
+    # 1. Verificar todas las operaciones con intervalo
+    cursor.execute("""
+        SELECT F.OPERACION_ID, F.INTERVALO, F.FECHA_FINAL, F.ESTADO,
+               T.ACTUALIZAR, I.CONCEPTO
+        FROM FLUJO F
+        JOIN TRANSACCIONES T ON F.OPERACION_ID = T.OPERACION_ID
+        JOIN INFO_TRANSACCIONES I ON T.INFO_ID = I.INFO_ID
+        WHERE F.INTERVALO IS NOT NULL
+    """)
+    operaciones = cursor.fetchall()
+    
+    print(f"\nOperaciones recurrentes encontradas: {len(operaciones)}")
+    for op in operaciones:
+        print(f"""
+        Operación ID: {op[0]}
+        - Intervalo: {op[1]}
+        - Fecha final: {op[2]}
+        - Estado: {op[3]}
+        - Próxima actualización: {op[4]}
+        - Concepto: {op[5]}
+        """)
+    
+    # 2. Verificar específicamente las actualizaciones para la fecha dada
+    cursor.execute("""
+        SELECT COUNT(*) 
+        FROM TRANSACCIONES 
+        WHERE ACTUALIZAR = ?
+    """, (fecha_str,))
+    count = cursor.fetchone()[0]
+    print(f"\nActualizaciones programadas para {fecha_str}: {count}")
+
+# ...existing code...
 

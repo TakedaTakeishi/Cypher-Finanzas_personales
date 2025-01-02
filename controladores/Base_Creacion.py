@@ -131,7 +131,7 @@ def Creacion_Tablas(Base, cursor):
                             ,CONSTRAINT TRANSAC_OPE_ID_FK  FOREIGN KEY (OPERACION_ID) REFERENCES Flujo (OPERACION_ID)
                         );
     ''') #La fecha es para la hora y fecha del ingreso del registro de la transacción.
-    
+    # TODO: Cambiar los nombres de los constraints
 #--------------------------------------TRIGGERS--------------------------------------------
 ## Pasos para actualizar el saldo según los saldos anteriores
 
