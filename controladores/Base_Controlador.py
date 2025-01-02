@@ -1,11 +1,23 @@
 import sqlite3 as sql
-# Se usa . para indicar que se importa de la misma carpeta
 from . import Base_Creacion as bc
 from urllib.request import pathname2url
 import os
+import sys
+from os import path
 import re
 from pathlib import Path
 from datetime import datetime, timedelta
+
+# Obtenemos la ruta raíz del proyecto
+raiz = path.dirname(path.dirname(path.abspath(__file__)))
+sys.path.append(raiz)
+
+# Definimos la carpeta donde se guardarán las bases de datos
+BD_DIR = path.join(raiz, 'base_datos')
+
+# Creamos la carpeta BD si no existe
+if not path.exists(BD_DIR):
+    os.makedirs(BD_DIR)
 
 #=============================================================================================================
 #                                          === INSERCIONES ===
@@ -374,85 +386,22 @@ def modifTransacc(): # ¿Este es útil?
     VALUES(?, ? ,?, ?, ?);'''
 
 def nombre_BD(Nombre):
-    Nombre_Base = Nombre.strip() + ".bd"
-    return Nombre_Base
-
+    # Ahora retornamos sólo el nombre del archivo
+    return f"{Nombre.strip()}.db"
 
 def verificar_BD(Nombre):
-    if os.path.exists(nombre_BD(Nombre)):
+    # Construimos la ruta completa usando path.join
+    ruta_bd = path.join(BD_DIR, nombre_BD(Nombre))
+    if path.exists(ruta_bd):
         print("La base de datos existe.")
         return True
     else:
         print("La base de datos no existe.")
         return False
 
-def validar_fecha(fecha):#Te regresa verdadero si el string fecha es una fecha corrrecta y no esta en el futuro
-    anio = int(fecha[:4])
-    mes = int(fecha[5:7])
-    dia = int(fecha[8:10])
-    fecha_hora_actual = datetime.now()
-    if anio<=0:
-        return False
-    if mes<=0 or mes>12:
-        return False
-    if mes in [4, 6, 9, 11] and (dia <= 0 or dia > 30):
-                return False
-    elif mes == 2:
-        if (anio % 4 == 0 and anio % 100 != 0) or (anio % 400 == 0):  
-            if dia <= 0 or dia > 29:
-                return False
-        else:
-            if dia <= 0 or dia > 28:
-                return False
-    elif dia <= 0 or dia > 31:
-        return False
-    
-    entered_date = datetime.strptime(fecha, "%Y-%m-%d")
-    if entered_date<=fecha_hora_actual:
-        return True
-    else:
-        return False
-
-def base_Fecha():   
-    regular = False
-    s = ""
-    while(not regular):
-        s = input("Dame la fecha inicial en formato YYYY-MM-DD: ") #DD-MM-YYYY
-        #s = año + '-' + mes + '-' + dia
-        regular = bool(re.match(r'^\d{4}-\d{2}-\d{2}$',s)) #Hacer un validador de días, meses y años para la interfaz: le toca a Salazar
-        if(regular != True):
-            print("Formato incorrecto, vuelve a intentarlo.")
-        else:
-            if validar_fecha(s) == False:      
-                print("Fecha está en el futuro, vuelva a intentarlo.")
-                regular = False
-            else:
-                print(f"Fecha aceptada, la base inicia el: {s}")
-    return s
-
-"""
-def diferencia(cursor, str_fin, str_inicio, tipo):
-  
-    query = f'''
-    SELECT (strftime('%{tipo}', '{str_fin}') - strftime('%{tipo}', '{str_inicio}'));
-    '''
-    cursor.execute(query)
-    fetchedData = cursor.fetchall()
-    return fetchedData[0][0]
-"""
-
-
 def usuarios_Dir(Base_Nombre):
-    current_directory = Path.cwd()
-    folder_name = 'BD'
-    target_folder = current_directory / folder_name
-    if not target_folder.exists():
-        target_folder.mkdir()
-        print(f"La carpeta ha sido creada: {target_folder}")
-        
-    archivo_ruta = target_folder / Base_Nombre
-    #print(f"Ruta de la base: {archivo_ruta}")
-    return archivo_ruta
+    # Simplemente retornamos la ruta completa de la base de datos
+    return path.join(BD_DIR, Base_Nombre)
 
 def base_Inicializar(Opcion, Nombre, Fecha = None): #Opción 1 para crear base y 2 (o cualquiera realmente) para conectarse directamente.
     

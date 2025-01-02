@@ -2,12 +2,21 @@ import sys
 import os
 from os import path
 # Usamos dirname para obtener la carpeta padre de la carpeta en la que se encuentra este archivo.
+# Guardando la carpeta padre del proyecto en una variable.
 # Se usa dos veces para obtener la carpeta padre del proyecto.
-sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+raiz = path.dirname(path.dirname(path.abspath(__file__)))
+# Agregamos la carpeta padre del proyecto al path de python para poder importar los módulos que se encuentran en ella.
+sys.path.append(raiz)
+
 
 import controladores.Base_Controlador as ctr
 from datetime import datetime, timedelta
 import locale
+
+# Creamos la variable global para la ruta de los usuarios.
+ruta_usuarios = raiz + '/Usuarios.txt'
+
+# -------------------------------------- Funciones -----------------------------------------------
 
 #Los límites pueden tener esta nomeclatura [lim_inf, lim_sup], ejemplos: [None, 5], [1, 5], [1, None] 
 
@@ -221,7 +230,7 @@ def usuarios_Uno(file_path):
             return False
 
 def usuario_Nuevo():
-    ruta = path.realpath('Usuarios.txt')
+    ruta = raiz + '/Usuarios.txt'
     Nombre = usuario_Crear()
     usuario_Asigna(ruta, Nombre)
     Fecha = fecha_Inicial()
@@ -234,7 +243,7 @@ def usuario_Nombre(ruta, fila):
     return Nombre.strip()
     
 def usuarios_Elegir(Usuarios_Max):
-    ruta = path.realpath('Usuarios.txt')
+    ruta = raiz + '/Usuarios.txt'
     while True:
         print()
         opcion = int(input("Elije el número de usuario: "))
@@ -247,7 +256,7 @@ def usuarios_Elegir(Usuarios_Max):
 
 def usuarios_menu():
     print("Elije usuario:")
-    ruta = path.realpath('Usuarios.txt')
+    ruta = raiz + '/Usuarios.txt'
     file_object = open(ruta, "r", encoding="utf-8")
     # Loop over and print each line in the file object.
     i = 0
@@ -273,7 +282,7 @@ def usuario_leer(ruta, file):
 def usuario_Iniciar():
 #     ruta = path.realpath('Usuarios.txt')
 #     print(f'La ruta de usuarios txt es: {ruta}')
-    ruta = 'Usuarios.txt'
+    ruta = raiz + '/Usuarios.txt'
     # Si existe leemos si no escribimos y creamos
     if (os.path.exists(ruta)):
         with open(ruta,'r') as file:
@@ -306,7 +315,7 @@ def delete_line(file_path, line_number):
 
 def usuarios_Borrar(Usuarios_Max, Base, cursor, Usuario):
     print("0. Cancelar proceso")
-    ruta = path.realpath('Usuarios.txt')
+    ruta = raiz + '/Usuarios.txt'
     borrado = False
     while True:
         opcion = input_validado("\nElige el número de usuario a eliminar: ",1)

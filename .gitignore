@@ -1,0 +1,20 @@
+# Bases de datos SQLite
+base_datos/
+*.db
+
+# Archivo de usuarios
+Usuarios.txt
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+env/
+.env/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
