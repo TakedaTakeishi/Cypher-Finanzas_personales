@@ -1,7 +1,12 @@
-import Base_Controlador as ctr
-from os import path
-from datetime import datetime, timedelta
+import sys
 import os
+from os import path
+# Usamos dirname para obtener la carpeta padre de la carpeta en la que se encuentra este archivo.
+# Se usa dos veces para obtener la carpeta padre del proyecto.
+sys.path.append(path.dirname(path.dirname(path.abspath(__file__))))
+
+import controladores.Base_Controlador as ctr
+from datetime import datetime, timedelta
 import locale
 
 #Los límites pueden tener esta nomeclatura [lim_inf, lim_sup], ejemplos: [None, 5], [1, 5], [1, None] 

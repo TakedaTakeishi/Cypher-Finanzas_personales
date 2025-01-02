@@ -1,12 +1,10 @@
 import sqlite3 as sql
-import Base_Creacion as bc
+# Se usa . para indicar que se importa de la misma carpeta
+from . import Base_Creacion as bc
 from urllib.request import pathname2url
 import os
 import re
-import string
 from pathlib import Path
-import pathlib
-from os import path
 from datetime import datetime, timedelta
 
 #=============================================================================================================
