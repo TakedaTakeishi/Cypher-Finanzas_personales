@@ -99,7 +99,7 @@ def eleccion(Pregunta):
                 return False
         print('>>>Opción inválida, intenta otra vez.')
 
-def fecha_ingresar():
+def fecha_ingresar() -> str:
     anio=mes=dia=0
     while anio <= 0:
         anio = input_validado("Ingresa el año: ", 1)
@@ -133,11 +133,11 @@ def fecha_ingresar():
 
         
 def fecha_Inicial():
-    fecha_hora_actual = datetime.now()
+    fecha_hora_actual = datetime.now().date()
     print(".:Fecha a iniciar analisis:.")
     while True:
         entered_date_str = fecha_ingresar()
-        entered_date = datetime.strptime(entered_date_str, "%Y-%m-%d")
+        entered_date = datetime.strptime(entered_date_str, "%Y-%m-%d").date()
         if entered_date <= fecha_hora_actual:
             break
         else:
@@ -613,19 +613,57 @@ def modificar(Base, cursor, Dia_ID, Fecha):
                     Modificaciones = []
 
 
-def DL(fecha):
-    if (type(fecha) is str):
-        fecha_objeto = datetime.strptime(fecha, '%Y-%m-%d')
-        fecha_txt = fecha_objeto.strftime('[%a] %d de %B del %Y')
-    elif (type(fecha) is datetime):
-        fecha_txt = fecha.strftime('[%a] %d de %B del %Y')
-    fecha_DL= fecha_txt.replace(' 0', ' ')
-    return fecha_DL
+def DL(fecha) -> str:
+    """
+    Convierte una fecha a formato legible en español: [día] DD de Mes del YYYY
+    
+    Args:
+        fecha: Puede ser str en formato 'YYYY-MM-DD' o un objeto datetime
+        
+    Returns:
+        str: Fecha formateada en español, ej: '[Lun] 1 de Enero del 2024'
+        
+    Raises:
+        ValueError: Si el formato de fecha es inválido
+    """
+    # Diccionario para traducir días y meses
+    dias = {
+        'Mon': 'Lun', 'Tue': 'Mar', 'Wed': 'Mié',
+        'Thu': 'Jue', 'Fri': 'Vie', 'Sat': 'Sáb', 'Sun': 'Dom'
+    }
+    
+    meses = {
+        'January': 'Enero', 'February': 'Febrero', 'March': 'Marzo',
+        'April': 'Abril', 'May': 'Mayo', 'June': 'Junio',
+        'July': 'Julio', 'August': 'Agosto', 'September': 'Septiembre',
+        'October': 'Octubre', 'November': 'Noviembre', 'December': 'Diciembre'
+    }
+    
+    try:
+        # Convertir a datetime si es string
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d') if isinstance(fecha, str) else fecha
+        
+        # Formatear fecha
+        fecha_txt = fecha_obj.strftime('[%a] %d de %B del %Y')
+        
+        # Traducir día y mes
+        for eng, esp in dias.items():
+            fecha_txt = fecha_txt.replace(eng, esp)
+        for eng, esp in meses.items():
+            fecha_txt = fecha_txt.replace(eng, esp)
+        
+        # Eliminar ceros iniciales en días
+        fecha_txt = fecha_txt.replace(' 0', ' ')
+        
+        return fecha_txt
+        
+    except (ValueError, AttributeError) as e:
+        raise ValueError(f"Formato de fecha inválido. Debe ser 'YYYY-MM-DD' o datetime: {str(e)}")
         
 # ------------------------------------- Datos ingresar -----------------------------------------------------
 def actualizar_diario(Base, cursor, fecha_objeto):
     # 1. Insertar movimientos recurrentes
-    ctr.insertar_recurrencias(Base, cursor, fecha_objeto)
+    ctr.insertar_recurrencias(Base, cursor, fecha_objeto.strftime('%Y-%m-%d'))
     
     # 2. Calcular y actualizar saldo del día
     fecha_actual = fecha_objeto.strftime('%Y-%m-%d')
@@ -665,7 +703,7 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
     ultimo_dia, Dia_ID = ctr.fecha_Max(cursor)
     ultimo_dia_txt = DL(ultimo_dia)
     print(f"El último día es: {ultimo_dia_txt}")
-    dia_Hoy_objeto = datetime.now()
+    dia_Hoy_objeto = datetime.now().date()
     dia_Hoy_str = dia_Hoy_objeto.strftime('%Y-%m-%d')
     print(f'Haciendo la diferencia entre: {dia_Hoy_str} y {ultimo_dia}.')
     diferencia = ctr.fecha_compara(dia_Hoy_str,ultimo_dia)
@@ -677,7 +715,7 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
         operacion(Base,cursor, Dia_ID, ultimo_dia)
         actualizar_diario(Base, cursor, dia_Hoy_objeto)
     else:
-        fecha_objeto = datetime.strptime(ultimo_dia, '%Y-%m-%d')
+        fecha_objeto = datetime.strptime(ultimo_dia, '%Y-%m-%d').date()
         # Pregunta si quieres ingresar dia por día o pasar. Luego para cada dia pregunta si para ese día hay datos que ingresar.  
         if eleccion(f'.:Han pasado {diferencia} días >> ¿Quieres ingresar datos para esos días?'):
             
@@ -761,8 +799,6 @@ def datos_Mostrar(cursor):
    
 # -------------------------------------- Menu -----------------------------------------------
 def menu():
-    #Para no tener que configurar varias veces el tiempo local en su formato, lo hacemos aquí.
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8') #Generalizar dependiendo del sistema en el que corra.
     Base, cursor, Usuario = usuario_Iniciar()
     while True:
         print("<----------  MENU  ---------->\n")

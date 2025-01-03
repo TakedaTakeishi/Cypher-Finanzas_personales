@@ -20,39 +20,42 @@ if not path.exists(BD_DIR):
     os.makedirs(BD_DIR)
 
 
-def fecha_compara(Fecha_principal, Fecha_secundaria):
-    if (type(Fecha_principal) is not datetime):
-        F_principal = datetime.strptime(Fecha_principal, "%Y-%m-%d")
-    if (type(Fecha_secundaria) is not datetime):
-        F_secundaria = datetime.strptime(Fecha_secundaria, "%Y-%m-%d")
-    if F_principal != F_secundaria:
-        return (F_principal - F_secundaria).days
-    else:
-        return 0
+def fecha_compara(Fecha_primaria, Fecha_secundaria):
+    F_primaria = datetime.strptime(Fecha_primaria, "%Y-%m-%d").date()
+    F_secundaria = datetime.strptime(Fecha_secundaria, "%Y-%m-%d").date()
+    diferencia = (F_primaria - F_secundaria).days
+    return diferencia
 
 #=============================================================================================================
 #                                          === CONSULTAS ===
 #=============================================================================================================
 
 def fecha_Max(cursor):
-    cursor.execute("""SELECT MAX(FECHA) FROM Diario""")
-    Fecha = cursor.fetchall()[0][0]
-    cursor.execute("""SELECT MAX(DIA_ID) FROM Diario""")
-    Dia_ID = cursor.fetchall()[0][0]
-    return Fecha, Dia_ID
+    cursor.execute('''SELECT MAX(FECHA), MAX(DIA_ID)
+                    FROM Diario''')
+    fetchedData = cursor.fetchall()
+    # Retornamos la fecha y el ID
+    return fetchedData[0][0], fetchedData[0][1]
 
-def ID_de_fecha(cursor, Fecha):
-    cursor.execute(f'''SELECT DIA_ID FROM Diario WHERE FECHA = ?''', (Fecha,))
-    Dia_ID = cursor.fetchall()[0][0]
-    print(f'El día ID de {Fecha} es {Dia_ID}.')
-    return Dia_ID
+def ID_de_fecha(cursor, fecha_str):
+    cursor.execute('''SELECT DIA_ID
+                    FROM Diario
+                    WHERE FECHA = ?''', (fecha_str,))
+    # Usamos fetchone para obtener un solo resultado
+    resultado = cursor.fetchone()
+    if resultado is None:
+        raise ValueError(f"No se encontró ningún ID para la fecha {fecha_str}")
+    return resultado[0]
 
 def fecha_de_ID(cursor, Dia_ID):
-    cursor.execute('SELECT FECHA FROM Diario WHERE DIA_ID = ?', (Dia_ID,))
+    cursor.execute('''SELECT FECHA 
+                    FROM Diario
+                    WHERE DIA_ID = ?''', (Dia_ID,))
     resultados = cursor.fetchall()
     if not resultados:
         raise ValueError(f"No se encontró ninguna fecha para el ID {Dia_ID}")
-    return resultados[0][0]
+    fecha_str = resultados[0][0]
+    return datetime.strptime(fecha_str, "%Y-%m-%d").date()
 
 def datos_Semana(cursor):
     pass
@@ -205,7 +208,7 @@ def insertFlujo(Base, cursor, Intervalo = None, Fecha_final = None, Intereses = 
 
 # Función para insertar fechas en la tabla
 def insertar_fechas(cursor, fecha_inicio, num_dias):
-    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
     for i in range(num_dias):
         print(i)
         fecha_actual += timedelta(days=1)
@@ -230,9 +233,9 @@ def dato_Intervalo_decodificacion(Codigo, fecha_actual=None):
     
     # Si no se proporciona fecha_actual, usar la fecha del sistema
     if fecha_actual is None:
-        fecha_actual = datetime.now()
+        fecha_actual = datetime.now().date()
     elif isinstance(fecha_actual, str):
-        fecha_actual = datetime.strptime(fecha_actual, '%Y-%m-%d')
+        fecha_actual = datetime.strptime(fecha_actual, '%Y-%m-%d').date()
 
     match Codigo:
         case -1:  # Mensual
@@ -305,14 +308,13 @@ def insertOperation(Base, cursor, Dia_ID, Concepto, Monto, Rubro = None, Interva
     if Intervalo:
         # Entonces Actualizar es la fecha + el intervalo
         # Aquí necesitamos una función que haga que el intervalo sea un número que podamos sumar a la fecha
-        fecha = datetime.strptime(fecha, '%Y-%m-%d')
         Actualizar = fecha + timedelta(days=dato_Intervalo_decodificacion(Intervalo, fecha))
     else:
         Actualizar = None
     insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID, Actualizar)
 
-def generarDias(Base, cursor, fecha_inicio, num_dias):
-    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+def generarDias(Base, cursor, fecha_inicio: str, num_dias: int):
+    fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
     for _ in range(num_dias):
         fecha_actual += timedelta(days=1)
         cursor.execute('INSERT INTO Diario (FECHA) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
@@ -350,11 +352,12 @@ def se_actualizan(cursor, intervalos, fecha_str):
         return []
 
 def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
+
     id_fecha = ID_de_fecha(cursor, fecha_str)
     print(f"\nProcesando {len(cumplen)} transacciones recurrentes para fecha {fecha_str}")
     
     for tupla in cumplen:
-        consulta = f'''SELECT F.INTERVALO, F.INTERESES, F.FECHA_FINAL, F.OPERACION_ID, T.INFO_ID, I.MONTO, I.COMPUESTO, I.CONCEPTO, D.FECHA, R.TIPO
+        consulta = f'''SELECT F.INTERVALO, F.INTERESES, F.FECHA_FINAL, F.OPERACION_ID, T.INFO_ID, I.MONTO, I.COMPUESTO, I.CONCEPTO, R.TIPO
                         FROM FLUJO F
                         JOIN TRANSACCIONES T ON F.OPERACION_ID = T.OPERACION_ID
                         JOIN INFO_TRANSACCIONES I ON T.INFO_ID = I.INFO_ID
@@ -363,7 +366,7 @@ def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
                         WHERE T.TRANSACCION_ID = {tupla[0]}'''
         cursor.execute(consulta)
         resultado = cursor.fetchall()[0]
-        intervalo, intereses, fecha_final, operacion_id, info_id, monto, compuesto, concepto, fecha, rubro = resultado
+        intervalo, intereses, fecha_final, operacion_id, info_id, monto, compuesto, concepto, rubro = resultado
         
         # Verificar si la operación debe terminar, es mayor a 1 para que se ejecute en la fecha final
         if fecha_final is not None and fecha_compara(fecha_str, fecha_final) >= 1:
@@ -380,8 +383,8 @@ def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
                 nuevo_info_id = insertInfo_transaccciones(Base, cursor, concepto, nuevo_monto, rubro, nuevo_compuesto)
             else:
                 nuevo_info_id = info_id
-
-            Actualizar = datetime.strptime(fecha_str, '%Y-%m-%d') + timedelta(days=dato_Intervalo_decodificacion(intervalo, fecha_str))
+            # Como todos cumplen que se actualizan hoy, entonces podemos usar fecha_str
+            Actualizar = datetime.strptime(fecha_str, '%Y-%m-%d').date() + timedelta(days=dato_Intervalo_decodificacion(intervalo, fecha_str))
             Fecha_hora = datetime.now()
             
             insertTransacciones(Base, cursor, operacion_id, Fecha_hora, nuevo_info_id, id_fecha, Actualizar) 
@@ -389,8 +392,7 @@ def agregar_recurrentes(Base, cursor, cumplen, fecha_str):
         
     Base.commit()
 
-def insertar_recurrencias(Base, cursor, fecha_objeto):
-    fecha_str = fecha_objeto.strftime('%Y-%m-%d')
+def insertar_recurrencias(Base, cursor, fecha_str: str):
     print(f"\nBuscando recurrencias para fecha: {fecha_str}")
     
     intervalos = consulta_intervalos(cursor)
@@ -719,5 +721,4 @@ def diagnostico_recurrencias(cursor, fecha_str):
     count = cursor.fetchone()[0]
     print(f"\nActualizaciones programadas para {fecha_str}: {count}")
 
-# ...existing code...
 
