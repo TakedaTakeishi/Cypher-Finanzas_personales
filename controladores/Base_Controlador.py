@@ -1,12 +1,10 @@
 import sqlite3 as sql
 from . import Base_Creacion as bc
-from urllib.request import pathname2url
 import os
 import sys
 from os import path
-import re
-from pathlib import Path
 from datetime import datetime, timedelta
+from calendar import monthrange
 
 # Obtenemos la ruta raíz del proyecto
 raiz = path.dirname(path.dirname(path.abspath(__file__)))
@@ -29,6 +27,32 @@ def fecha_compara(Fecha_primaria, Fecha_secundaria):
 #=============================================================================================================
 #                                          === CONSULTAS ===
 #=============================================================================================================
+def calcular_saldo_dia(cursor, dia_id):
+# Obtener la suma de todos los movimientos del día
+    cursor.execute('''
+        SELECT COALESCE(SUM(i.MONTO), 0)
+        FROM Transacciones t
+        JOIN Info_transacciones i ON t.INFO_ID = i.INFO_ID
+        WHERE t.DIA_ID = ?
+    ''', (dia_id,))
+    return cursor.fetchone()[0]
+
+def calcular_saldo_anterior(cursor, dia_id):
+    if dia_id > 1:
+        cursor.execute('SELECT SALDO FROM Diario WHERE DIA_ID = ?', (dia_id - 1,))
+        saldo_anterior = cursor.fetchone()[0]
+    else:
+        saldo_anterior = 0
+    return saldo_anterior
+
+def actualizar_saldo_diario(cursor, dia_id: int, saldo_dia: int, saldo_anterior: int):
+    # Actualizar saldo del día
+    cursor.execute('''
+        UPDATE Diario 
+        SET DIA_SALDO = ?,
+            SALDO = ? + ?
+        WHERE DIA_ID = ?
+    ''', (saldo_dia, saldo_anterior, saldo_dia, dia_id))
 
 def fecha_Max(cursor):
     cursor.execute('''SELECT MAX(FECHA), MAX(DIA_ID)
@@ -37,7 +61,7 @@ def fecha_Max(cursor):
     # Retornamos la fecha y el ID
     return fetchedData[0][0], fetchedData[0][1]
 
-def ID_de_fecha(cursor, fecha_str):
+def ID_de_fecha(cursor, fecha_str: str):
     cursor.execute('''SELECT DIA_ID
                     FROM Diario
                     WHERE FECHA = ?''', (fecha_str,))
@@ -70,7 +94,6 @@ def consulta_intervalos(cursor):
 #=============================================================================================================
 #                                          === INSERCIONES ===
 #=============================================================================================================
-#No hemos avanzado con el proyecto
 def insertFecha(Base, cursor, Fecha):
     Diario = """INSERT INTO Diario
     VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);"""
@@ -97,7 +120,6 @@ INSERT INTO Diario VALUES (Null,'2023-07-23',0,0,0,0,0,0,0);
 INSERT INTO Semanal VALUES (Null,'2023-07-23',Null,0,0,0,0,0,0,0);
 INSERT INTO Mensual VALUES (Null,'2023-07-23',Null,0,0,0,0,0,0,0);
 INSERT INTO Anual VALUES (Null,'2023-07-23',Null,0,0,0,0,0,0,0);
-
 '''    
 
 
@@ -313,15 +335,105 @@ def insertOperation(Base, cursor, Dia_ID, Concepto, Monto, Rubro = None, Interva
         Actualizar = None
     insertTransacciones(Base, cursor, Operacion_ID, Fecha_hora, Info_ID, Dia_ID, Actualizar)
 
+def ultimo_dia_mes(fecha_actual: datetime.date):
+    """
+    Determina si la fecha dada es el último día del mes.
+    Args:
+        fecha_actual: Fecha a evaluar
+    Returns:
+        bool: True si es el último día del mes, False en caso contrario
+    """
+    
+
 def generarDias(Base, cursor, fecha_inicio: str, num_dias: int):
+    """
+    Genera los días desde la fecha de inicio hasta la fecha de inicio + num_dias. Además si este día es fin de
+    semana, mes o año, se generan los registros correspondientes en las tablas semanales, mensuales y anuales.
+    Args:
+        Base: Conexión a la base de datos
+        cursor: Cursor de la base de datos
+        fecha_inicio: Fecha de inicio en formato YYYY-MM-DD
+        num_dias: Número de días a generar
+    Returns:
+        None (la base se actualiza directamente)
+    """
     fecha_actual = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+
+        
     for _ in range(num_dias):
         fecha_actual += timedelta(days=1)
         cursor.execute('INSERT INTO Diario (FECHA) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
+        # Si es inicio de semana, mes o año, insertar en las tablas correspondientes
+        if fecha_actual.day == 1:
+            # Es inicio de mes
+            cursor.execute('INSERT INTO Mensual (MES_INICIO) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
+            # El día es el último día del mes
+            if ultimo_dia_mes(fecha_actual):
+                cursor.execute('INSERT INTO Mensual (MES_FINAL) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))  
+
+
+        if fecha_actual.month == 1:
+            # Es inicio de año
+            cursor.execute('INSERT INTO Anual (ANIO_INICIO) VALUES (?)', (fecha_actual.strftime('%Y-%m-%d'),))
     Base.commit()    
 
 
-# Funciones para agregar transacciones recurrentes
+# -------------- Funciones para agregar actualizaciones de operaciones --------------
+def es_fin_de(fecha: datetime) -> dict:
+    """
+    Determina si una fecha es fin de semana, mes o año
+    
+    Args:
+        fecha: datetime object
+    Returns:
+        dict: Diccionario indicando si es fin de cada periodo
+    """
+    # Obtener el último día del mes actual
+    ultimo_dia_mes = monthrange(fecha.year, fecha.month)[1]
+    
+    return {
+        'semana': fecha.weekday() >= 5,  # 5=Sábado, 6=Domingo
+        'mes': fecha.day == ultimo_dia_mes,
+        'año': fecha.month == 12 and fecha.day == 31
+    }
+
+
+# Función para actualizar la información de las tablas diario, semanal, mensual y anual
+def actualizar_periodos_financieros(Base, cursor, fecha_objeto):
+    """
+    Actualiza la información de las tablas diario, semanal, mensual y anual con los datos del intervalo
+    Args:
+        Base: Conexión a la base de datos
+        cursor: Cursor de la base de datos
+        fecha_objeto: Fecha de la actualización en formato datetime.date
+    Returns:
+        None (la base se actualiza directamente)
+
+    """
+    # Primero veamos si la fecha es inicio de semana, mes o año
+    
+
+def actualizar_diario(Base, cursor, fecha_objeto):
+    # 1. Insertar movimientos recurrentes
+    insertar_recurrencias(Base, cursor, fecha_objeto.strftime('%Y-%m-%d'))
+    
+    # 2. Calcular y actualizar saldo del día
+    fecha_actual = fecha_objeto.strftime('%Y-%m-%d')
+    dia_id = ID_de_fecha(cursor, fecha_actual)
+    
+    # Obtener saldo del día
+    saldo_dia = calcular_saldo_dia(cursor, dia_id)
+    
+    # Obtener saldo anterior
+    saldo_anterior = calcular_saldo_anterior(cursor, dia_id)
+    
+    # Actualizar saldo del día
+    actualizar_saldo_diario(cursor, dia_id, saldo_dia, saldo_anterior)
+    
+    Base.commit()
+    
+    # 3. Actualizar estadísticas con el nuevo saldo
+    actualizar_estadisticas(Base, cursor, fecha_objeto)
 
 # Las que cumplen con la fecha de actualización
 def se_actualizan(cursor, intervalos, fecha_str):

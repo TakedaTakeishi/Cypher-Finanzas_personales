@@ -661,42 +661,7 @@ def DL(fecha) -> str:
         raise ValueError(f"Formato de fecha inválido. Debe ser 'YYYY-MM-DD' o datetime: {str(e)}")
         
 # ------------------------------------- Datos ingresar -----------------------------------------------------
-def actualizar_diario(Base, cursor, fecha_objeto):
-    # 1. Insertar movimientos recurrentes
-    ctr.insertar_recurrencias(Base, cursor, fecha_objeto.strftime('%Y-%m-%d'))
-    
-    # 2. Calcular y actualizar saldo del día
-    fecha_actual = fecha_objeto.strftime('%Y-%m-%d')
-    dia_id = ctr.ID_de_fecha(cursor, fecha_actual)
-    
-    # Obtener la suma de todos los movimientos del día
-    cursor.execute('''
-        SELECT COALESCE(SUM(i.MONTO), 0)
-        FROM Transacciones t
-        JOIN Info_transacciones i ON t.INFO_ID = i.INFO_ID
-        WHERE t.DIA_ID = ?
-    ''', (dia_id,))
-    saldo_dia = cursor.fetchone()[0]
-    
-    # Obtener saldo anterior
-    if dia_id > 1:
-        cursor.execute('SELECT SALDO FROM Diario WHERE DIA_ID = ?', (dia_id - 1,))
-        saldo_anterior = cursor.fetchone()[0]
-    else:
-        saldo_anterior = 0
-    
-    # Actualizar saldo del día
-    cursor.execute('''
-        UPDATE Diario 
-        SET DIA_SALDO = ?,
-            SALDO = ? + ?
-        WHERE DIA_ID = ?
-    ''', (saldo_dia, saldo_anterior, saldo_dia, dia_id))
-    
-    Base.commit()
-    
-    # 3. Actualizar estadísticas con el nuevo saldo
-    ctr.actualizar_estadisticas(Base, cursor, fecha_objeto)
+
 
 
 def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo, 0 sin intervalo
@@ -713,7 +678,7 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
         operacion(Base,cursor, Dia_ID, ultimo_dia)
     elif diferencia == 1:  
         operacion(Base,cursor, Dia_ID, ultimo_dia)
-        actualizar_diario(Base, cursor, dia_Hoy_objeto)
+        ctr.actualizar_diario(Base, cursor, dia_Hoy_objeto)
     else:
         fecha_objeto = datetime.strptime(ultimo_dia, '%Y-%m-%d').date()
         # Pregunta si quieres ingresar dia por día o pasar. Luego para cada dia pregunta si para ese día hay datos que ingresar.  
@@ -723,7 +688,7 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
                 fecha_objeto += timedelta(days=1)
                 fecha_actual_str = fecha_objeto.strftime('%Y-%m-%d')
                 fecha_actual_txt = DL(fecha_objeto)
-                actualizar_diario(Base, cursor, fecha_objeto)
+                ctr.actualizar_diario(Base, cursor, fecha_objeto)
                 # TODO: tener la opción de saltarte varias fechas.
                 if eleccion(f'Para la fecha {fecha_actual_txt} ¿Quieres ingresar datos?'):
                     Dia_id_N = ctr.ID_de_fecha(cursor,fecha_actual_str)
@@ -732,7 +697,7 @@ def datos_Ingresar(Base, cursor): #Cuando el tipo es 1 se regresa con intervalo,
         else:
             for _ in range(diferencia):
                 fecha_objeto += timedelta(days=1)
-                actualizar_diario(Base, cursor, fecha_objeto)
+                ctr.actualizar_diario(Base, cursor, fecha_objeto)
     
 def datos_Modificar(Base, cursor):
     #Para conocer hasta el día en que se pueden hacer cambios.
