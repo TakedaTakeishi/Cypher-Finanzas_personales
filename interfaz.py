@@ -22,222 +22,9 @@ from dash.exceptions import PreventUpdate
 
 from bd_enlace import DatabaseBridge
 
+from visualizacion_datos import DataProcessor, DashboardVisualizer, update_dash_figures, setup_dash_callbacks
 
-# ==============================================================================
-# 1. Datos Ficticios (Mensuales y Diarios) + Gráficas
-# ==============================================================================
 
-# A) Datos mensuales
-meses = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-]
-lista_registros = []
-for anio in [2022, 2023]:
-    ingresos = np.random.randint(20000, 50000, size=12)
-    egresos = np.random.randint(10000, 30000, size=12)
-    saldo = ingresos - egresos
-    for i, mes in enumerate(meses):
-        lista_registros.append({
-            "Anio": anio,
-            "Mes": mes,
-            "Ingresos": ingresos[i],
-            "Egresos": egresos[i],
-            "Saldo": saldo[i]
-        })
-df_mensual = pd.DataFrame(lista_registros)
-
-# B) Datos de rubros (para pastel)
-df_rubros_ingresos = pd.DataFrame({
-    "Rubro": ["Ventas", "Servicios", "Inversiones", "Otros"],
-    "Valor": [60000, 25000, 15000, 8000]
-})
-df_rubros_egresos = pd.DataFrame({
-    "Rubro": ["Sueldos", "Servicios Básicos", "Marketing", "Otros"],
-    "Valor": [30000, 10000, 5000, 4000]
-})
-
-# C) Datos diarios
-rng = pd.date_range("2023-01-01", "2023-12-31", freq="D")
-np.random.seed(42)
-df_diario = pd.DataFrame({
-    "Fecha": rng,
-    "Ingresos": np.random.randint(1000, 5000, size=len(rng)),
-    "Egresos": np.random.randint(500, 3000, size=len(rng)),
-})
-df_diario["Saldo"] = df_diario["Ingresos"] - df_diario["Egresos"]
-
-# D) Preparación de datos (melt para Ingresos/Egresos)
-df_melt = df_mensual.melt(
-    id_vars=["Anio", "Mes", "Saldo"],
-    value_vars=["Ingresos", "Egresos"],
-    var_name="Tipo",
-    value_name="Monto"
-)
-
-custom_color_discrete_map = {
-    "Ingresos": "#00E5FF",
-    "Egresos": "#FF9800",
-    "Saldo": "#FFEB3B",
-}
-
-# Gráfico A: Línea (Ingresos vs Egresos)
-fig_line_ing_eg = px.line(
-    df_melt,
-    x="Mes", y="Monto", color="Tipo",
-    color_discrete_map=custom_color_discrete_map,
-    markers=True,
-    facet_col="Anio",
-    title="Ingresos vs Egresos (Gráfico de Línea)"
-)
-fig_line_ing_eg.update_layout(
-    template="plotly",
-    paper_bgcolor="#1C2C40",
-    plot_bgcolor="#1C2C40",
-    font_color="white",
-    legend_title_text=""
-)
-
-# Gráfico B: Línea de Saldo
-fig_line_saldo = px.line(
-    df_mensual,
-    x="Mes",
-    y="Saldo",
-    color="Anio",
-    color_discrete_sequence=["#00E5FF", "#FF9800"],
-    markers=True,
-    title="Saldo (Balance) (Gráfico de Línea)"
-)
-fig_line_saldo.update_layout(
-    template="plotly",
-    paper_bgcolor="#1C2C40",
-    plot_bgcolor="#1C2C40",
-    font_color="white"
-)
-
-# Gráfico C: Pastel de Ingresos x Rubro
-fig_pie_ingresos = px.pie(
-    df_rubros_ingresos,
-    names="Rubro",
-    values="Valor",
-    title="Proporción de Ingresos por Rubro",
-    color_discrete_sequence=px.colors.sequential.Blues_r
-)
-fig_pie_ingresos.update_layout(
-    template="plotly",
-    paper_bgcolor="#1C2C40",
-    font_color="white"
-)
-
-# Gráfico D: Pastel de Egresos x Rubro
-fig_pie_egresos = px.pie(
-    df_rubros_egresos,
-    names="Rubro",
-    values="Valor",
-    title="Proporción de Egresos por Rubro",
-    color_discrete_sequence=px.colors.sequential.Oranges
-)
-fig_pie_egresos.update_layout(
-    template="plotly",
-    paper_bgcolor="#1C2C40",
-    font_color="white"
-)
-
-# Gráfico E: Barras agrupadas (Comparación entre Ingresos y Egresos)
-fig_barras_agrup = px.bar(
-    df_melt,
-    x="Anio",
-    y="Monto",
-    color="Tipo",
-    color_discrete_map=custom_color_discrete_map,
-    barmode="group",
-    facet_col="Mes",
-    title="Comparación Ingresos/Egresos en distintos años (Barras Agrupadas)"
-)
-fig_barras_agrup.update_layout(
-    template="plotly",
-    paper_bgcolor="#1C2C40",
-    plot_bgcolor="#1C2C40",
-    font_color="white"
-)
-
-# Gráfico F: Línea diaria (Ingresos)
-fig_diario_ingresos = px.line(
-    df_diario, x="Fecha", y="Ingresos",
-    title="Ingresos diarios (2023)",
-    color_discrete_sequence=["#00E5FF"]
-)
-fig_diario_ingresos.update_layout(
-    template="plotly",
-    paper_bgcolor="#1C2C40",
-    plot_bgcolor="#1C2C40",
-    font_color="white"
-)
-
-# ==============================================================================
-# 2. Funciones para agrupar datos diarios en tabla
-# ==============================================================================
-def calcular_estadisticas(grupo):
-    ing_prom = grupo["Ingresos"].mean()
-    ing_mediana = grupo["Ingresos"].median()
-    ing_moda = grupo["Ingresos"].mode()
-    ing_moda = ing_moda.iloc[0] if not ing_moda.empty else None
-
-    egr_prom = grupo["Egresos"].mean()
-    egr_mediana = grupo["Egresos"].median()
-    egr_moda = grupo["Egresos"].mode()
-    egr_moda = egr_moda.iloc[0] if not egr_moda.empty else None
-
-    sal_prom = grupo["Saldo"].mean()
-    sal_mediana = grupo["Saldo"].median()
-    sal_moda = grupo["Saldo"].mode()
-    sal_moda = sal_moda.iloc[0] if not sal_moda.empty else None
-
-    return {
-        "Ingresos (Promedio)": round(ing_prom, 2),
-        "Ingresos (Mediana)": round(ing_mediana, 2),
-        "Ingresos (Moda)": round(ing_moda, 2) if ing_moda is not None else None,
-        "Egresos (Promedio)": round(egr_prom, 2),
-        "Egresos (Mediana)": round(egr_mediana, 2),
-        "Egresos (Moda)": round(egr_moda, 2) if egr_moda is not None else None,
-        "Saldo (Promedio)": round(sal_prom, 2),
-        "Saldo (Mediana)": round(sal_mediana, 2),
-        "Saldo (Moda)": round(sal_moda, 2) if sal_moda is not None else None,
-    }
-
-def agrupar_por_intervalo(df, intervalo):
-    if intervalo == "diario":
-        grupos = df.groupby(df["Fecha"].dt.date)
-    elif intervalo == "semanal":
-        df_temp = df.copy()
-        df_temp["Year"] = df_temp["Fecha"].dt.year
-        df_temp["Semana"] = df_temp["Fecha"].dt.isocalendar().week
-        grupos = df_temp.groupby(["Year", "Semana"])
-    elif intervalo == "mensual":
-        df_temp = df.copy()
-        df_temp["Year"] = df_temp["Fecha"].dt.year
-        df_temp["Mes"] = df_temp["Fecha"].dt.month
-        grupos = df_temp.groupby(["Year", "Mes"])
-    elif intervalo == "anual":
-        grupos = df.groupby(df["Fecha"].dt.year)
-    else:
-        return pd.DataFrame()
-
-    resultados = []
-    for grupo_key, subdf in grupos:
-        stats = calcular_estadisticas(subdf)
-        if intervalo == "diario":
-            label = str(grupo_key)
-        elif intervalo == "semanal":
-            label = f"{grupo_key[0]}-Semana {grupo_key[1]}"
-        elif intervalo == "mensual":
-            label = f"{grupo_key[0]}-Mes {grupo_key[1]}"
-        elif intervalo == "anual":
-            label = f"Año {grupo_key}"
-        row_dict = {"Intervalo": label}
-        row_dict.update(stats)
-        resultados.append(row_dict)
-    return pd.DataFrame(resultados)
 
 # ==============================================================================
 # 3. Primera App Dash (puerto 8050) - Dashboard con todas las gráficas
@@ -266,15 +53,15 @@ app_dash.layout = html.Div(
         ),
         dbc.Container([
             dbc.Row([
-                dbc.Col(dcc.Graph(figure=fig_line_ing_eg), md=6),
-                dbc.Col(dcc.Graph(figure=fig_line_saldo), md=6),
+                dbc.Col(dcc.Graph(id='fig_line_ing_eg'), md=6),
+                dbc.Col(dcc.Graph(id='fig_line_saldo'), md=6),
             ]),
             dbc.Row([
-                dbc.Col(dcc.Graph(figure=fig_pie_ingresos), md=6),
-                dbc.Col(dcc.Graph(figure=fig_pie_egresos), md=6),
+                dbc.Col(dcc.Graph(id='fig_pie_ingresos'), md=6),
+                dbc.Col(dcc.Graph(id='fig_pie_egresos'), md=6),
             ]),
             dbc.Row([
-                dbc.Col(dcc.Graph(figure=fig_barras_agrup), md=12),
+                dbc.Col(dcc.Graph(id='fig_barras_agrup'), md=12),
             ]),
         ], fluid=True),
         html.Hr(),
@@ -291,7 +78,7 @@ app_dash.layout = html.Div(
             value="mensual",
             style={"width": "300px"}
         ),
-        dcc.Graph(figure=fig_diario_ingresos),
+        dcc.Graph(id='fig_diario_ingresos'),
         dash_table.DataTable(
             id="tabla-estadisticas",
             columns=[
@@ -322,13 +109,7 @@ app_dash.layout = html.Div(
     ]
 )
 
-@app_dash.callback(
-    Output("tabla-estadisticas", "data"),
-    Input("intervalo-dropdown", "value"),
-)
-def actualizar_tabla(intervalo):
-    df_result = agrupar_por_intervalo(df_diario, intervalo)
-    return df_result.to_dict("records")
+
 
 # ==============================================================================
 # 4. Segunda App Dash (puerto 8051) - Ingreso de Datos / Lista de Operaciones
@@ -648,11 +429,12 @@ def create_empty_app(database: DatabaseBridge):
             raise PreventUpdate
         
         print("\n=== Subiendo operaciones a la base de datos ===")
-        # Usamos la misma instancia para subir operaciones
         success = database.upload_operations(operaciones, selected_date)
         
         if success:
             print("Operaciones subidas exitosamente")
+            # Actualizar las gráficas después de subir operaciones
+            update_dash_figures(app_dash, database)
             return []
         else:
             print("Error al subir operaciones")
@@ -885,12 +667,22 @@ class MainWindow(QMainWindow):
 
     def start_dash_server(self):
         def run_dash():
+            # Configurar callbacks
+            setup_dash_callbacks(app_dash, self.database)
+            
+            # Actualizar gráficas iniciales
+            update_dash_figures(app_dash, self.database)
+            
+            # Iniciar servidor
             app_dash.run_server(debug=False, use_reloader=False, port=8050)
+        
         self.dash_thread = Thread(target=run_dash, daemon=True)
         self.dash_thread.start()
         self.web_view.setUrl(QUrl("http://127.0.0.1:8050"))
 
     def show_dashboard(self):
+        # Actualizar gráficas antes de mostrar el dashboard
+        update_dash_figures(app_dash, self.database)
         self.web_view.setUrl(QUrl("http://127.0.0.1:8050"))
 
     def show_empty_dashboard(self):

@@ -143,3 +143,59 @@ class DatabaseBridge:
                 self.cursor = None
                 self.current_user = None
 
+    def _get_monthly_data_impl(self):
+        """Implementación real de obtener datos mensuales."""
+        try:
+            if not self.cursor:
+                return None
+            return bc.obtener_datos_mensuales(self.cursor)
+        except Exception as e:
+            print(f"Error al obtener datos mensuales: {e}")
+            return None
+
+    def _get_category_data_impl(self):
+        """Implementación real de obtener datos por categoría."""
+        try:
+            if not self.cursor:
+                return None
+            return bc.obtener_datos_categorias(self.cursor)
+        except Exception as e:
+            print(f"Error al obtener datos por categoría: {e}")
+            return None
+
+    def _get_daily_data_impl(self):
+        """Implementación real de obtener datos diarios."""
+        try:
+            if not self.cursor:
+                return None
+            return bc.obtener_datos_diarios(self.cursor)
+        except Exception as e:
+            print(f"Error al obtener datos diarios: {e}")
+            return None
+
+    def get_monthly_data(self):
+        """Encola la operación de obtener datos mensuales."""
+        result = [None]
+        def callback(data):
+            result[0] = data
+        self.queue.put((self._get_monthly_data_impl, (), callback))
+        self.queue.join()
+        return result[0]
+
+    def get_category_data(self):
+        """Encola la operación de obtener datos por categoría."""
+        result = [None]
+        def callback(data):
+            result[0] = data
+        self.queue.put((self._get_category_data_impl, (), callback))
+        self.queue.join()
+        return result[0]
+
+    def get_daily_data(self):
+        """Encola la operación de obtener datos diarios."""
+        result = [None]
+        def callback(data):
+            result[0] = data
+        self.queue.put((self._get_daily_data_impl, (), callback))
+        self.queue.join()
+        return result[0]
