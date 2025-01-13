@@ -1,0 +1,123 @@
+/* =========================
+   1. FUENTES E IMPORTS
+   ========================= */
+   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+
+   /* =========================
+      2. ESTILOS GENERALES
+      ========================= */
+   body {
+     margin: 0;
+     padding: 0;
+     font-family: 'Poppins', sans-serif;
+     background-color: #1C2C40; /* azul muy oscuro */
+     color: #ffffff;
+   }
+   
+   .main-background {
+     background-color: #1C2C40;
+     min-height: 100vh;
+     padding: 20px;
+   }
+   
+   /* =========================
+      3. TITULOS Y TEXTOS
+      ========================= */
+   .titulo-principal {
+     text-align: center;
+     font-size: 2.5rem;
+     color: #00E5FF; /* verde agua brillante */
+     margin-bottom: 30px;
+     text-transform: uppercase; /* solo para estilo */
+     letter-spacing: 2px;
+   }
+   
+   .subtitle {
+     font-size: 1.8rem;
+     color: #FF9800; /* naranja brillante */
+     margin-top: 40px;
+     margin-bottom: 10px;
+     text-align: center;
+   }
+   
+   .explanatory-text {
+     text-align: center;
+     margin-bottom: 20px;
+     font-size: 1rem;
+     color: #e0e0e0;
+   }
+   
+   /* =========================
+      4. ELEMENTOS
+      ========================= */
+   /* Tarjetas con gráficas */
+   .card-graph {
+     background-color: #283a4d; /* algo más claro que #1C2C40 */
+     border-radius: 10px;
+     padding: 20px;
+     margin-bottom: 20px;
+     box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+     transition: transform 0.2s, box-shadow 0.2s;
+     cursor: pointer;
+   }
+   
+   .card-graph:hover {
+     transform: scale(1.02);
+     box-shadow: 0 6px 15px rgba(0,0,0,0.7);
+   }
+   
+   /* Para separar filas entre sí */
+   .row-section {
+     margin-bottom: 40px;
+   }
+   
+   /* Dropdown personalizado (opcional) */
+   .custom-dropdown {
+     width: 300px;
+     margin: 0 auto 30px auto;
+     color: #000; /* el texto del dropdown (dentro del input) en negro */
+   }
+   
+   /* =========================
+      5. TABLA (DataTable)
+      ========================= */
+   /* 
+      Envuélvelo en <div className="data-table-custom"> 
+      en tu app.py
+   */
+   .data-table-custom {
+     margin-top: 30px;
+     margin-bottom: 50px;
+   }
+   
+   /* La clase nativa de dash-table para el contenedor */
+   .data-table-custom .dash-table-container {
+     background-color: #1C2C40; /* se acopla al fondo principal */
+   }
+   
+   /* Encabezado de la tabla */
+   .data-table-custom .dash-header {
+     background-color: #283a4d;
+     font-weight: 600;
+     color: white;
+     border: none; /* si quieres remover bordes extras */
+   }
+   
+   /* Celdas del body */
+   .data-table-custom .dash-cell {
+     background-color: #1C2C40;
+     color: white;
+     border: 1px solid #555;
+   }
+   
+   /* Ajuste a la scrollbar (opcional, para personalizar la barra de desplazamiento) */
+   .data-table-custom .dash-table-container::-webkit-scrollbar {
+     width: 8px;
+   }
+   .data-table-custom .dash-table-container::-webkit-scrollbar-track {
+     background: #283a4d;
+   }
+   .data-table-custom .dash-table-container::-webkit-scrollbar-thumb {
+     background-color: #00E5FF;
+     border-radius: 4px;
+   }

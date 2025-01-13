@@ -158,11 +158,12 @@ def insertRubro(cursor, rubro):
 
 def insertInfo_transaccciones(Base, cursor, Concepto, Monto, Rubro = None, Compuesto = None):
     Info_Transacciones = '''INSERT INTO Info_transacciones
-    VALUES(?, ?, ?, ?, ?);'''
+                          VALUES(?, ?, ?, ?, ?);'''
     if(Rubro):
         Rubro_id = insertRubro(cursor, Rubro)
     else:
         Rubro_id = None
+        
     cursor.execute(Info_Transacciones, (None, Concepto, Monto, Rubro_id, Compuesto)) #Falta verificar el rubro_id de rubro
     Base.commit()
 
@@ -834,3 +835,54 @@ def diagnostico_recurrencias(cursor, fecha_str):
     print(f"\nActualizaciones programadas para {fecha_str}: {count}")
 
 
+# ========================================================================================
+#                                         === Obtener Datos ===
+# ========================================================================================
+
+def obtener_datos_mensuales(cursor):
+    """Obtiene datos mensuales de transacciones."""
+    query = '''
+        SELECT 
+            strftime('%Y-%m', d.FECHA) as YearMonth,
+            SUM(CASE WHEN i.MONTO > 0 THEN i.MONTO ELSE 0 END) as Ingresos,
+            SUM(CASE WHEN i.MONTO < 0 THEN ABS(i.MONTO) ELSE 0 END) as Egresos,
+            SUM(i.MONTO) as Saldo
+        FROM Diario d
+        LEFT JOIN Transacciones t ON d.DIA_ID = t.DIA_ID
+        LEFT JOIN Info_transacciones i ON t.INFO_ID = i.INFO_ID
+        GROUP BY strftime('%Y-%m', d.FECHA)
+        ORDER BY YearMonth
+    '''
+    cursor.execute(query)
+    return cursor.fetchall()
+
+def obtener_datos_categorias(cursor):
+    """Obtiene datos por categoría (rubro)."""
+    query = '''
+        SELECT 
+            r.TIPO,
+            SUM(CASE WHEN i.MONTO > 0 THEN i.MONTO ELSE 0 END) as Ingresos,
+            SUM(CASE WHEN i.MONTO < 0 THEN ABS(i.MONTO) ELSE 0 END) as Egresos
+        FROM Info_transacciones i
+        LEFT JOIN Rubro r ON i.RUBRO_ID = r.RUBRO_ID
+        GROUP BY r.TIPO
+    '''
+    cursor.execute(query)
+    return cursor.fetchall()
+
+def obtener_datos_diarios(cursor):
+    """Obtiene datos diarios."""
+    query = '''
+        SELECT 
+            d.FECHA,
+            SUM(CASE WHEN i.MONTO > 0 THEN i.MONTO ELSE 0 END) as Ingresos,
+            SUM(CASE WHEN i.MONTO < 0 THEN ABS(i.MONTO) ELSE 0 END) as Egresos,
+            d.SALDO
+        FROM Diario d
+        LEFT JOIN Transacciones t ON d.DIA_ID = t.DIA_ID
+        LEFT JOIN Info_transacciones i ON t.INFO_ID = i.INFO_ID
+        GROUP BY d.FECHA
+        ORDER BY d.FECHA
+    '''
+    cursor.execute(query)
+    return cursor.fetchall()
