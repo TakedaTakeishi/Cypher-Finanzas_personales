@@ -19,12 +19,17 @@
     ```
 2. **Accede al directorio del proyecto**:
     ```bash
-    cd finanzas-personales/interfaz
+    cd '.\Cypher-Finanzas_personales\'
     ```
 4. **Inicia la aplicación**:
+    - Interfaz gráfica:
+      ```bash
+      python interfaz.py
+      ```  
     - Menú en línea de comandos:
       ```bash
-      python Base_interfaz.py
+      cd '.\interfaz\'
+      python Linea_de_comandos.py
       ```
 ---
 
@@ -56,8 +61,8 @@
 ## Tecnologías Utilizadas
 
 - **Lenguaje**: Python
-- **Framework**:       [Flask / Django (para Python) o Express / React (para JavaScript)]
-- **Base de Datos**:   (SQLite / PostgreSQL)
+- **Framework**:       
+- **Base de Datos**:   SQLite
 - **Otros**:           (Lista de bibliotecas o librerías adicionales)
 
 ---
@@ -66,7 +71,7 @@
 
 ## Licencia
 
-Este proyecto está licenciado bajo la Licencia XXX - ver el archivo [LICENSE](LICENSE) para más detalles.
+Este proyecto está licenciado bajo la Licencia GLP - ver el archivo [LICENSE](LICENSE) para más detalles.
 
 ---
 
